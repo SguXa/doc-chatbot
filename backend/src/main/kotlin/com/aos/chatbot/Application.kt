@@ -1,6 +1,7 @@
 package com.aos.chatbot
 
 import com.aos.chatbot.config.AppConfig
+import com.aos.chatbot.config.DatabaseConfig
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.Application
@@ -30,6 +31,9 @@ fun Application.module() {
             call.respond(HttpStatusCode.InternalServerError, mapOf("error" to "Internal server error"))
         }
     }
+
+    val dbConfig = DatabaseConfig(appConfig)
+    dbConfig.initialize()
 
     log.info("AOS Chatbot started in ${appConfig.mode} mode on ${appConfig.host}:${appConfig.port}")
 }

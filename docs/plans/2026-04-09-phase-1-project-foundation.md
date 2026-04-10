@@ -64,13 +64,13 @@ Bootstrap the AOS Documentation Chatbot with a minimal, runnable project foundat
 - Create: `backend/src/main/kotlin/com/aos/chatbot/config/DatabaseConfig.kt`
 - Create: `backend/src/main/resources/db/migration/V001__initial_schema.sql`
 
-- [ ] Create V001__initial_schema.sql with the full schema from section 6.1: users table, documents table, chunks table (with embedding BLOB), images table, config table, plus all indexes (idx_chunks_document, idx_chunks_content_type, idx_chunks_section, idx_images_document)
-- [ ] Create Database.kt: connection factory using SQLite JDBC, enables WAL mode and foreign keys via PRAGMA statements
-- [ ] Create Migrations.kt: reads SQL files from classpath resources/db/migration/ in version order, tracks applied migrations in a schema_version table, applies pending ones
-- [ ] Create DatabaseConfig.kt: creates data directory if needed, initializes database connection using AppConfig.databasePath, runs migrations
-- [ ] Wire database initialization into Application.kt module
-- [ ] Write tests using in-memory SQLite: migration applies cleanly on fresh DB, migration is idempotent, all expected tables exist after migration, foreign keys are enforced
-- [ ] Verify: `cd backend && ./gradlew test` passes
+- [x] Create V001__initial_schema.sql with the full schema from section 6.1: users table, documents table, chunks table (with embedding BLOB), images table, config table, plus all indexes (idx_chunks_document, idx_chunks_content_type, idx_chunks_section, idx_images_document)
+- [x] Create Database.kt: connection factory using SQLite JDBC, enables WAL mode and foreign keys via PRAGMA statements
+- [x] Create Migrations.kt: reads SQL files from classpath resources/db/migration/ in version order, tracks applied migrations in a schema_version table, applies pending ones
+- [x] Create DatabaseConfig.kt: creates data directory if needed, initializes database connection using AppConfig.databasePath, runs migrations
+- [x] Wire database initialization into Application.kt module
+- [x] Write tests using in-memory SQLite: migration applies cleanly on fresh DB, migration is idempotent, all expected tables exist after migration, foreign keys are enforced
+- [x] Verify: `cd backend && ./gradlew test` passes
 
 ### Task 3: Health check endpoints
 
