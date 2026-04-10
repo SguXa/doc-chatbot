@@ -14,13 +14,24 @@ class Migrations(private val connection: Connection) {
 
         for (migration in pending.sortedBy { it.version }) {
             logger.info("Applying migration ${migration.version}: ${migration.name}")
-            connection.createStatement().use { stmt ->
-                for (sql in migration.sql.split(";").map { it.trim() }.filter { it.isNotEmpty() }) {
-                    stmt.execute(sql)
+            val previousAutoCommit = connection.autoCommit
+            connection.autoCommit = false
+            try {
+                connection.createStatement().use { stmt ->
+                    for (sql in migration.sql.split(";").map { it.trim() }.filter { it.isNotEmpty() }) {
+                        stmt.execute(sql)
+                    }
                 }
+                recordMigration(migration.version, migration.name)
+                connection.commit()
+                logger.info("Migration ${migration.version} applied successfully")
+            } catch (e: Exception) {
+                connection.rollback()
+                logger.error("Migration ${migration.version} failed, rolled back: ${e.message}")
+                throw e
+            } finally {
+                connection.autoCommit = previousAutoCommit
             }
-            recordMigration(migration.version, migration.name)
-            logger.info("Migration ${migration.version} applied successfully")
         }
 
         if (pending.isEmpty()) {
