@@ -107,13 +107,13 @@ Bootstrap the AOS Documentation Chatbot with a minimal, runnable project foundat
 - Modify: `frontend/src/App.tsx`
 - Modify: `frontend/src/main.tsx`
 
-- [ ] Install react-router-dom; set up BrowserRouter in main.tsx and a basic route structure in App.tsx with a "/" route (placeholder page showing app title and health status)
-- [ ] Install @tanstack/react-query; add QueryClientProvider in main.tsx
-- [ ] Create api/client.ts: typed fetch wrapper with base URL from env or relative path, JSON response parsing, error handling (throws on non-ok responses)
-- [ ] Update App.tsx to fetch GET /api/health on mount using the API client and display the result
-- [ ] Write tests: App renders with router, api/client.ts constructs URLs correctly and throws on error responses
-- [ ] Verify: `cd frontend && npm test` passes
-- [ ] Verify: `cd frontend && npm run build` succeeds
+- [x] Install react-router-dom; set up BrowserRouter in main.tsx and a basic route structure in App.tsx with a "/" route (placeholder page showing app title and health status)
+- [x] Install @tanstack/react-query; add QueryClientProvider in main.tsx
+- [x] Create api/client.ts: typed fetch wrapper with base URL from env or relative path, JSON response parsing, error handling (throws on non-ok responses)
+- [x] Update App.tsx to fetch GET /api/health on mount using the API client and display the result
+- [x] Write tests: App renders with router, api/client.ts constructs URLs correctly and throws on error responses
+- [x] Verify: `cd frontend && npm test` passes
+- [x] Verify: `cd frontend && npm run build` succeeds
 
 ### Task 6: Docker and environment configuration
 
