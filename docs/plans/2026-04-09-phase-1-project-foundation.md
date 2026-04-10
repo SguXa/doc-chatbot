@@ -45,16 +45,16 @@ Bootstrap the AOS Documentation Chatbot with a minimal, runnable project foundat
 - Create: `backend/src/main/kotlin/com/aos/chatbot/config/AppConfig.kt`
 - Create: `.gitignore`
 
-- [ ] Initialize Gradle wrapper in backend/ (gradlew, gradle/wrapper/)
-- [ ] Create build.gradle.kts with: Kotlin 1.9, Ktor 2.x (server-core, server-netty, server-content-negotiation, server-status-pages, kotlinx-serialization-json), SQLite JDBC, shadow JAR plugin, JUnit 5, MockK, ktor-server-test-host
-- [ ] Create settings.gradle.kts with project name "aos-chatbot-backend"
-- [ ] Create application.conf per section 12.2 but only with ktor deployment (port/host with defaults) and app.mode, app.database.path -- omit ollama section
-- [ ] Create AppConfig data class reading MODE, PORT, HOST, DATABASE_PATH, DATA_PATH from environment with defaults (MODE=full, PORT=8080, DATABASE_PATH=./data/aos.db, DATA_PATH=./data). MODE is an enum of full/admin/client
-- [ ] Create Application.kt with Ktor EngineMain/application.conf startup and an Application.module installing ContentNegotiation (JSON) and StatusPages
-- [ ] Create logback.xml with console appender, text format
-- [ ] Create root .gitignore covering Gradle (build/, .gradle/), Node (node_modules/, dist/), IDE (.idea/, .vscode/), data files (*.db, data/), environment (.env)
-- [ ] Write tests: smoke test starting/stopping Ktor test application, AppConfig defaults, AppConfig mode parsing, invalid mode handling
-- [ ] Verify: `cd backend && ./gradlew test` passes
+- [x] Initialize Gradle wrapper in backend/ (gradlew, gradle/wrapper/)
+- [x] Create build.gradle.kts with: Kotlin 1.9, Ktor 2.x (server-core, server-netty, server-content-negotiation, server-status-pages, kotlinx-serialization-json), SQLite JDBC, shadow JAR plugin, JUnit 5, MockK, ktor-server-test-host
+- [x] Create settings.gradle.kts with project name "aos-chatbot-backend"
+- [x] Create application.conf per section 12.2 but only with ktor deployment (port/host with defaults) and app.mode, app.database.path -- omit ollama section
+- [x] Create AppConfig data class reading MODE, PORT, HOST, DATABASE_PATH, DATA_PATH from environment with defaults (MODE=full, PORT=8080, DATABASE_PATH=./data/aos.db, DATA_PATH=./data). MODE is an enum of full/admin/client
+- [x] Create Application.kt with Ktor EngineMain/application.conf startup and an Application.module installing ContentNegotiation (JSON) and StatusPages
+- [x] Create logback.xml with console appender, text format
+- [x] Create root .gitignore covering Gradle (build/, .gradle/), Node (node_modules/, dist/), IDE (.idea/, .vscode/), data files (*.db, data/), environment (.env)
+- [x] Write tests: smoke test starting/stopping Ktor test application, AppConfig defaults, AppConfig mode parsing, invalid mode handling
+- [x] Verify: `cd backend && ./gradlew test` passes
 
 ### Task 2: SQLite database and migrations
 
