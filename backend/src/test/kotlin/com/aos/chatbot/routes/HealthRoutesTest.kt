@@ -21,6 +21,18 @@ class HealthRoutesTest {
 
     @Test
     fun `GET api health returns 200 with healthy status`() = testApplication {
+        environment {
+            config = io.ktor.server.config.MapApplicationConfig()
+        }
+        val mockConnection = mockk<Connection>()
+
+        application {
+            install(ContentNegotiation) { json() }
+            routing {
+                healthRoutes(mockConnection)
+            }
+        }
+
         val response = client.get("/api/health")
         assertEquals(HttpStatusCode.OK, response.status)
 
@@ -30,6 +42,19 @@ class HealthRoutesTest {
 
     @Test
     fun `GET api health ready returns 200 when database is available`() = testApplication {
+        environment {
+            config = io.ktor.server.config.MapApplicationConfig()
+        }
+        val mockConnection = mockk<Connection>()
+        every { mockConnection.isValid(any()) } returns true
+
+        application {
+            install(ContentNegotiation) { json() }
+            routing {
+                healthRoutes(mockConnection)
+            }
+        }
+
         val response = client.get("/api/health/ready")
         assertEquals(HttpStatusCode.OK, response.status)
 
