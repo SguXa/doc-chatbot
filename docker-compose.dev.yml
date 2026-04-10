@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  backend:
+    build: ./backend
+    container_name: aos-backend-dev
+    environment:
+      - MODE=full
+      - PORT=8080
+      - DATABASE_PATH=/data/aos.db
+      - JWT_SECRET=dev-secret-key-minimum-32-characters-long
+      - ADMIN_PASSWORD=admin
+    volumes:
+      - aos-data:/data
+      - ./backend/src:/app/src
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    container_name: aos-frontend-dev
+    ports:
+      - "3000:80"
+      - "5173:5173"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  aos-data:
