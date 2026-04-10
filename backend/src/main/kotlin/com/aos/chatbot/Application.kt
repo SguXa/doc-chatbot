@@ -5,6 +5,7 @@ import com.aos.chatbot.config.DatabaseConfig
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.Application
+import io.ktor.server.application.ApplicationStopped
 import io.ktor.server.application.install
 import io.ktor.server.application.log
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
@@ -36,6 +37,10 @@ fun Application.module() {
 
     val dbConfig = DatabaseConfig(appConfig)
     val connection = dbConfig.initialize()
+
+    environment.monitor.subscribe(ApplicationStopped) {
+        connection.close()
+    }
 
     routing {
         healthRoutes(connection)

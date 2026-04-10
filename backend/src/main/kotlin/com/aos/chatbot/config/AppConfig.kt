@@ -1,7 +1,6 @@
 package com.aos.chatbot.config
 
 import io.ktor.server.application.ApplicationEnvironment
-import kotlinx.serialization.Serializable
 
 enum class AppMode {
     FULL, ADMIN, CLIENT;

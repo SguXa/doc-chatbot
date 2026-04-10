@@ -75,11 +75,12 @@ class Migrations(private val connection: Connection) {
             }
             "jar" -> {
                 val jarPath = resourceUrl.path.substringBefore("!").removePrefix("file:")
-                val jar = java.util.jar.JarFile(jarPath)
-                jar.entries().asSequence()
-                    .filter { it.name.startsWith("$resourceDir/") && it.name.endsWith(".sql") }
-                    .map { it.name.substringAfterLast("/") }
-                    .toList()
+                java.util.jar.JarFile(jarPath).use { jar ->
+                    jar.entries().asSequence()
+                        .filter { it.name.startsWith("$resourceDir/") && it.name.endsWith(".sql") }
+                        .map { it.name.substringAfterLast("/") }
+                        .toList()
+                }
             }
             else -> emptyList()
         }

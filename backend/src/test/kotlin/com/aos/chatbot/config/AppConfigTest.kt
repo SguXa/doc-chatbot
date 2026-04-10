@@ -37,9 +37,9 @@ class AppConfigTest {
     }
 
     @Test
-    fun `AppConfig reads defaults from application conf`() {
-        // Defaults are tested via the testApplication in ApplicationTest
-        // Here we test the enum parsing which is the core logic
-        assertEquals(AppMode.FULL, AppMode.fromString("full"))
+    fun `AppMode throws on empty string`() {
+        assertFailsWith<IllegalArgumentException> {
+            AppMode.fromString("")
+        }
     }
 }

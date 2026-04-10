@@ -26,8 +26,14 @@ describe('api/client', () => {
         new Response('Not Found', { status: 404, statusText: 'Not Found' }),
       )
 
-      await expect(apiGet('/api/missing')).rejects.toThrow(ApiError)
-      await expect(apiGet('/api/missing')).rejects.toThrow('404')
+      try {
+        await apiGet('/api/missing')
+        expect.unreachable('Should have thrown')
+      } catch (error) {
+        expect(error).toBeInstanceOf(ApiError)
+        expect((error as ApiError).status).toBe(404)
+        expect((error as ApiError).message).toContain('404')
+      }
     })
   })
 

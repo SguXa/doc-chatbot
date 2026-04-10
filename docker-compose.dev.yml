@@ -12,7 +12,6 @@ services:
       - ADMIN_PASSWORD=admin
     volumes:
       - aos-data:/data
-      - ./backend/src:/app/src
     ports:
       - "8080:8080"
     healthcheck:
@@ -27,7 +26,6 @@ services:
     container_name: aos-frontend-dev
     ports:
       - "3000:80"
-      - "5173:5173"
     depends_on:
       - backend
     restart: unless-stopped

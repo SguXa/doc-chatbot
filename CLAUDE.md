@@ -36,7 +36,7 @@ cd frontend && npm test
 | Layer | Technology |
 |-------|------------|
 | Backend | Kotlin 1.9 + Ktor 2.x |
-| Frontend | React 18 + Vite 5 + TypeScript |
+| Frontend | React 19 + Vite 8 + TypeScript |
 | UI | shadcn/ui + Tailwind CSS |
 | Database | SQLite (embedded) |
 | LLM | Ollama qwen2.5:7b-instruct-q4_K_M |

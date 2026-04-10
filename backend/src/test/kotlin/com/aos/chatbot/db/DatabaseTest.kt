@@ -1,10 +1,9 @@
 package com.aos.chatbot.db
 
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertDoesNotThrow
+import java.io.File
 import java.sql.Connection
 import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 
 class DatabaseTest {
 
@@ -15,13 +14,18 @@ class DatabaseTest {
 
     @Test
     fun `WAL mode is enabled`() {
-        val conn = inMemoryConnection()
-        conn.use {
-            val rs = it.createStatement().executeQuery("PRAGMA journal_mode")
-            rs.next()
-            // In-memory SQLite may report "memory" instead of "wal"
-            val mode = rs.getString(1)
-            assertTrue(mode == "wal" || mode == "memory", "Journal mode should be wal or memory, got: $mode")
+        val tmpFile = File.createTempFile("aos-test-", ".db")
+        try {
+            val conn = Database(tmpFile.absolutePath).connect()
+            conn.use {
+                val rs = it.createStatement().executeQuery("PRAGMA journal_mode")
+                rs.next()
+                assertEquals("wal", rs.getString(1), "Journal mode should be wal")
+            }
+        } finally {
+            tmpFile.delete()
+            File(tmpFile.absolutePath + "-wal").delete()
+            File(tmpFile.absolutePath + "-shm").delete()
         }
     }
 
