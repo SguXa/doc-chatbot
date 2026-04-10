@@ -11,6 +11,7 @@ function HomePage() {
     queryKey: ['health'],
     queryFn: () => apiGet<HealthResponse>('/api/health'),
     retry: false,
+    refetchInterval: 30000,
   })
 
   return (
@@ -26,7 +27,7 @@ function HomePage() {
           Backend status:{' '}
           {isLoading && <span>checking...</span>}
           {isError && <span className="text-red-500">unavailable</span>}
-          {data && <span className="text-green-600">{data.status}</span>}
+          {!isError && data && <span className="text-green-600">{data.status}</span>}
         </p>
       </div>
     </div>

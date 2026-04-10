@@ -18,7 +18,7 @@ class Migrations(private val connection: Connection) {
             connection.autoCommit = false
             try {
                 connection.createStatement().use { stmt ->
-                    for (sql in migration.sql.split(";").map { it.trim() }.filter { it.isNotEmpty() }) {
+                    for (sql in splitSqlStatements(migration.sql)) {
                         stmt.execute(sql)
                     }
                 }
@@ -77,17 +77,20 @@ class Migrations(private val connection: Connection) {
         val classLoader = this::class.java.classLoader
         val resourceDir = "db/migration"
 
-        val resourceUrl = classLoader.getResource(resourceDir) ?: return migrations
+        val resourceUrl = classLoader.getResource(resourceDir)
+            ?: throw IllegalStateException("Migration resource directory '$resourceDir' not found on classpath")
 
         val files = when (resourceUrl.protocol) {
             "file" -> {
-                java.io.File(resourceUrl.toURI()).listFiles()
-                    ?.filter { it.name.endsWith(".sql") }
-                    ?.map { it.name }
-                    ?: emptyList()
+                val dir = java.io.File(resourceUrl.toURI())
+                val listed = dir.listFiles()
+                    ?: throw IllegalStateException(
+                        "Failed to list migration files in '${dir.absolutePath}' (not a directory or I/O error)"
+                    )
+                listed.filter { it.name.endsWith(".sql") }.map { it.name }
             }
             "jar" -> {
-                val jarPath = resourceUrl.path.substringBefore("!").removePrefix("file:")
+                val jarPath = java.net.URI(resourceUrl.path.substringBefore("!")).path
                 java.util.jar.JarFile(jarPath).use { jar ->
                     jar.entries().asSequence()
                         .filter { it.name.startsWith("$resourceDir/") && it.name.endsWith(".sql") }
@@ -96,17 +99,24 @@ class Migrations(private val connection: Connection) {
                 }
             }
             else -> {
-                logger.warn("Unknown resource protocol '${resourceUrl.protocol}' for migration loading")
-                emptyList()
+                throw IllegalStateException(
+                    "Unsupported resource protocol '${resourceUrl.protocol}' for migration loading"
+                )
             }
         }
 
         for (filename in files) {
-            val match = MIGRATION_PATTERN.matchEntire(filename) ?: continue
+            val match = MIGRATION_PATTERN.matchEntire(filename)
+                ?: throw IllegalStateException(
+                    "Migration file '$filename' does not match expected pattern V<number>__<name>.sql — fix the filename or remove it from the migration directory"
+                )
             val version = match.groupValues[1].toInt()
             val name = match.groupValues[2]
             val sql = classLoader.getResourceAsStream("$resourceDir/$filename")
-                ?.bufferedReader()?.readText() ?: continue
+                ?.bufferedReader()?.readText()
+                ?: throw IllegalStateException(
+                    "Migration file '$filename' was discovered but could not be read from classpath"
+                )
             migrations.add(Migration(version, name, sql))
         }
 
@@ -117,5 +127,59 @@ class Migrations(private val connection: Connection) {
 
     companion object {
         private val MIGRATION_PATTERN = Regex("""V(\d+)__(.+)\.sql""")
+
+        /**
+         * Splits SQL text into individual statements, respecting string literals
+         * (single-quoted) and comments (-- line comments, /* block comments */).
+         */
+        fun splitSqlStatements(sql: String): List<String> {
+            val statements = mutableListOf<String>()
+            val current = StringBuilder()
+            var i = 0
+            while (i < sql.length) {
+                val c = sql[i]
+                when {
+                    // Single-quoted string literal: consume until closing quote
+                    c == '\'' -> {
+                        current.append(c)
+                        i++
+                        while (i < sql.length) {
+                            current.append(sql[i])
+                            if (sql[i] == '\'' && (i + 1 >= sql.length || sql[i + 1] != '\'')) break
+                            if (sql[i] == '\'' && i + 1 < sql.length && sql[i + 1] == '\'') {
+                                i++
+                                current.append(sql[i])
+                            }
+                            i++
+                        }
+                        i++
+                    }
+                    // Line comment: skip to end of line
+                    c == '-' && i + 1 < sql.length && sql[i + 1] == '-' -> {
+                        while (i < sql.length && sql[i] != '\n') i++
+                    }
+                    // Block comment: skip to closing */
+                    c == '/' && i + 1 < sql.length && sql[i + 1] == '*' -> {
+                        i += 2
+                        while (i + 1 < sql.length && !(sql[i] == '*' && sql[i + 1] == '/')) i++
+                        i += 2
+                    }
+                    // Statement terminator
+                    c == ';' -> {
+                        val stmt = current.toString().trim()
+                        if (stmt.isNotEmpty()) statements.add(stmt)
+                        current.clear()
+                        i++
+                    }
+                    else -> {
+                        current.append(c)
+                        i++
+                    }
+                }
+            }
+            val remaining = current.toString().trim()
+            if (remaining.isNotEmpty()) statements.add(remaining)
+            return statements
+        }
     }
 }

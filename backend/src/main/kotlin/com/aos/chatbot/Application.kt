@@ -30,7 +30,9 @@ fun Application.module() {
         exception<IllegalArgumentException> { call, cause ->
             call.respond(HttpStatusCode.BadRequest, mapOf("error" to (cause.message ?: "Bad request")))
         }
-        exception<Throwable> { call, _ ->
+        exception<Throwable> { call, cause ->
+            if (cause is kotlinx.coroutines.CancellationException) throw cause
+            if (cause is Error) throw cause
             call.respond(HttpStatusCode.InternalServerError, mapOf("error" to "Internal server error"))
         }
     }

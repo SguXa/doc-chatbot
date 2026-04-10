@@ -23,8 +23,13 @@ class DatabaseConfig(private val appConfig: AppConfig) {
         val database = Database(appConfig.databasePath)
         val connection = database.connect()
 
-        val migrations = Migrations(connection)
-        migrations.apply()
+        try {
+            val migrations = Migrations(connection)
+            migrations.apply()
+        } catch (e: Exception) {
+            connection.close()
+            throw e
+        }
 
         logger.info("Database initialized at ${appConfig.databasePath}")
         return connection

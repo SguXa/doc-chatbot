@@ -16,13 +16,14 @@ fun Route.healthRoutes(connection: Connection) {
 
         get("/ready") {
             try {
-                val ready = connection.isValid(2)
+                val ready = synchronized(connection) { connection.isValid(2) }
                 if (ready) {
                     call.respond(mapOf("status" to "ready"))
                 } else {
                     call.respond(HttpStatusCode.ServiceUnavailable, mapOf("status" to "unavailable"))
                 }
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
                 call.respond(HttpStatusCode.ServiceUnavailable, mapOf("status" to "unavailable"))
             }
         }
