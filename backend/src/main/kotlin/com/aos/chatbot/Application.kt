@@ -9,7 +9,9 @@ import io.ktor.server.application.install
 import io.ktor.server.application.log
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.plugins.statuspages.StatusPages
+import com.aos.chatbot.routes.healthRoutes
 import io.ktor.server.response.respond
+import io.ktor.server.routing.routing
 import kotlinx.serialization.json.Json
 
 fun Application.module() {
@@ -33,7 +35,11 @@ fun Application.module() {
     }
 
     val dbConfig = DatabaseConfig(appConfig)
-    dbConfig.initialize()
+    val connection = dbConfig.initialize()
+
+    routing {
+        healthRoutes(connection)
+    }
 
     log.info("AOS Chatbot started in ${appConfig.mode} mode on ${appConfig.host}:${appConfig.port}")
 }

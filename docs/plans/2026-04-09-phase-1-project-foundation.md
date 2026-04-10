@@ -77,10 +77,10 @@ Bootstrap the AOS Documentation Chatbot with a minimal, runnable project foundat
 **Files:**
 - Create: `backend/src/main/kotlin/com/aos/chatbot/routes/HealthRoutes.kt`
 
-- [ ] Create HealthRoutes.kt as an extension function on Route, with: GET /api/health returning {"status":"healthy"} (liveness, used by Docker HEALTHCHECK per section 14.2), GET /api/health/ready checking database connectivity (returns 200 with {"status":"ready"} or 503 with {"status":"unavailable"})
-- [ ] Register health routes in Application.kt routing block
-- [ ] Write tests using Ktor testApplication: /api/health returns 200 with correct JSON structure, /api/health/ready returns 200 when DB is available
-- [ ] Verify: `cd backend && ./gradlew test` passes
+- [x] Create HealthRoutes.kt as an extension function on Route, with: GET /api/health returning {"status":"healthy"} (liveness, used by Docker HEALTHCHECK per section 14.2), GET /api/health/ready checking database connectivity (returns 200 with {"status":"ready"} or 503 with {"status":"unavailable"})
+- [x] Register health routes in Application.kt routing block
+- [x] Write tests using Ktor testApplication: /api/health returns 200 with correct JSON structure, /api/health/ready returns 200 when DB is available
+- [x] Verify: `cd backend && ./gradlew test` passes
 
 ### Task 4: Frontend project setup with React, Vite, TypeScript, and Tailwind
 
