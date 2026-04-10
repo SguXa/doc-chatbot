@@ -90,14 +90,14 @@ Bootstrap the AOS Documentation Chatbot with a minimal, runnable project foundat
 - Create: `frontend/postcss.config.js`, `frontend/tailwind.config.ts`, `frontend/src/index.css`
 - Create: `frontend/eslint.config.js`
 
-- [ ] Scaffold frontend with `npm create vite@latest` using React + TypeScript template, or create equivalent files manually
-- [ ] Add and configure Tailwind CSS v3 with postcss
-- [ ] Configure vite.config.ts with dev proxy: /api/* routes to localhost:8080
-- [ ] Create minimal App.tsx with app title text
-- [ ] Add vitest, @testing-library/react, @testing-library/jest-dom, jsdom to devDependencies; configure vitest in vite.config.ts
-- [ ] Write smoke test: App component renders without crashing
-- [ ] Verify: `cd frontend && npm run build` succeeds
-- [ ] Verify: `cd frontend && npm test` passes
+- [x] Scaffold frontend with `npm create vite@latest` using React + TypeScript template, or create equivalent files manually
+- [x] Add and configure Tailwind CSS v3 with postcss
+- [x] Configure vite.config.ts with dev proxy: /api/* routes to localhost:8080
+- [x] Create minimal App.tsx with app title text
+- [x] Add vitest, @testing-library/react, @testing-library/jest-dom, jsdom to devDependencies; configure vitest in vite.config.ts
+- [x] Write smoke test: App component renders without crashing
+- [x] Verify: `cd frontend && npm run build` succeeds
+- [x] Verify: `cd frontend && npm test` passes
 
 ### Task 5: Frontend routing, TanStack Query, and API client
 
