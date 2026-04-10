@@ -147,6 +147,11 @@ class MigrationsTest {
                 """.trimIndent()
             )
 
+            // Verify chunk was inserted
+            val verifyRs = it.createStatement().executeQuery("SELECT COUNT(*) FROM chunks WHERE document_id = 1")
+            verifyRs.next()
+            assertEquals(1, verifyRs.getInt(1), "Chunk should exist before delete")
+
             // Delete the document
             it.createStatement().executeUpdate("DELETE FROM documents WHERE id = 1")
 

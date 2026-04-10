@@ -15,7 +15,9 @@ class Migrations(private val connection: Connection) {
         for (migration in pending.sortedBy { it.version }) {
             logger.info("Applying migration ${migration.version}: ${migration.name}")
             connection.createStatement().use { stmt ->
-                stmt.executeUpdate(migration.sql)
+                for (sql in migration.sql.split(";").map { it.trim() }.filter { it.isNotEmpty() }) {
+                    stmt.execute(sql)
+                }
             }
             recordMigration(migration.version, migration.name)
             logger.info("Migration ${migration.version} applied successfully")
@@ -82,7 +84,10 @@ class Migrations(private val connection: Connection) {
                         .toList()
                 }
             }
-            else -> emptyList()
+            else -> {
+                logger.warn("Unknown resource protocol '${resourceUrl.protocol}' for migration loading")
+                emptyList()
+            }
         }
 
         for (filename in files) {

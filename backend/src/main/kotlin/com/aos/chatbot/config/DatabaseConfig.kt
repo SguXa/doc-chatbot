@@ -15,7 +15,9 @@ class DatabaseConfig(private val appConfig: AppConfig) {
         val dataDir = dbFile.parentFile
         if (dataDir != null && !dataDir.exists()) {
             logger.info("Creating data directory: ${dataDir.absolutePath}")
-            dataDir.mkdirs()
+            if (!dataDir.mkdirs()) {
+                throw IllegalStateException("Failed to create data directory: ${dataDir.absolutePath}")
+            }
         }
 
         val database = Database(appConfig.databasePath)

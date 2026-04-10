@@ -46,7 +46,9 @@ docker compose up -d
 docker compose -f docker-compose.dev.yml up
 ```
 
-Health check: http://localhost:8080/api/health
+Health endpoints:
+- Liveness: http://localhost:8080/api/health
+- Readiness: http://localhost:8080/api/health/ready
 
 Stop with:
 
