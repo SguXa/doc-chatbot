@@ -143,15 +143,20 @@ class Migrations(private val connection: Connection) {
                     c == '\'' -> {
                         current.append(c)
                         i++
+                        var closed = false
                         while (i < sql.length) {
                             current.append(sql[i])
-                            if (sql[i] == '\'' && (i + 1 >= sql.length || sql[i + 1] != '\'')) break
+                            if (sql[i] == '\'' && (i + 1 >= sql.length || sql[i + 1] != '\'')) {
+                                closed = true
+                                break
+                            }
                             if (sql[i] == '\'' && i + 1 < sql.length && sql[i + 1] == '\'') {
                                 i++
                                 current.append(sql[i])
                             }
                             i++
                         }
+                        if (!closed) throw IllegalStateException("Unterminated string literal in migration SQL")
                         i++
                     }
                     // Line comment: skip to end of line
@@ -161,7 +166,15 @@ class Migrations(private val connection: Connection) {
                     // Block comment: skip to closing */
                     c == '/' && i + 1 < sql.length && sql[i + 1] == '*' -> {
                         i += 2
-                        while (i + 1 < sql.length && !(sql[i] == '*' && sql[i + 1] == '/')) i++
+                        var closed = false
+                        while (i + 1 < sql.length) {
+                            if (sql[i] == '*' && sql[i + 1] == '/') {
+                                closed = true
+                                break
+                            }
+                            i++
+                        }
+                        if (!closed) throw IllegalStateException("Unterminated block comment in migration SQL")
                         i += 2
                     }
                     // Statement terminator

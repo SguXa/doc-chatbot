@@ -29,7 +29,8 @@ data class AppConfig(
             val config = environment.config
             return AppConfig(
                 mode = AppMode.fromString(config.property("app.mode").getString()),
-                port = config.property("ktor.deployment.port").getString().toInt(),
+                port = config.property("ktor.deployment.port").getString().toIntOrNull()
+                    ?: throw IllegalArgumentException("PORT must be a valid integer"),
                 host = config.property("ktor.deployment.host").getString(),
                 databasePath = config.property("app.database.path").getString(),
                 dataPath = config.property("app.data.path").getString()

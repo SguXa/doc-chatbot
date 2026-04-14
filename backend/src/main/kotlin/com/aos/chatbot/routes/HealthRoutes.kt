@@ -6,6 +6,8 @@ import io.ktor.server.application.call
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
 import io.ktor.server.routing.route
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.sql.Connection
 
 fun Route.healthRoutes(connection: Connection) {
@@ -16,7 +18,9 @@ fun Route.healthRoutes(connection: Connection) {
 
         get("/ready") {
             try {
-                val ready = synchronized(connection) { connection.isValid(2) }
+                val ready = withContext(Dispatchers.IO) {
+                    synchronized(connection) { connection.isValid(2) }
+                }
                 if (ready) {
                     call.respond(mapOf("status" to "ready"))
                 } else {

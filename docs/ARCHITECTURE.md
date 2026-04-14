@@ -62,7 +62,7 @@ AOS Documentation Chatbot is an **offline RAG (Retrieval-Augmented Generation) s
 | Layer | Technology | Version | Purpose |
 |-------|------------|---------|---------|
 | **Backend** | Kotlin + Ktor | Kotlin 1.9+, Ktor 2.x | REST API, SSE streaming, coroutines |
-| **Frontend** | React + Vite | React 18, Vite 5 | SPA with TypeScript |
+| **Frontend** | React + Vite | React 19, Vite 8 | SPA with TypeScript |
 | **UI Components** | shadcn/ui + Tailwind | Latest | Modern, accessible components |
 | **Database** | SQLite | 3.x | Documents, chunks, users, embeddings |
 | **State Management** | TanStack Query | v5 | Server state, caching |
@@ -1236,11 +1236,11 @@ fun Application.warmupOllama() {
 
 ### Phase 1: Foundation (Week 1-2)
 
-- [ ] Project setup (Gradle, Vite, Docker)
-- [ ] Basic Ktor server with routing
-- [ ] SQLite database with migrations
-- [ ] React app with routing
-- [ ] Health check endpoints
+- [x] Project setup (Gradle, Vite, Docker)
+- [x] Basic Ktor server with routing
+- [x] SQLite database with migrations
+- [x] React app with routing
+- [x] Health check endpoints
 
 ### Phase 2: Document Processing (Week 3-4)
 
