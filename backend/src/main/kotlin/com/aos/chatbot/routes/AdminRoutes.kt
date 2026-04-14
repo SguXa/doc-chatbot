@@ -1,0 +1,111 @@
+package com.aos.chatbot.routes
+
+import com.aos.chatbot.db.Database
+import com.aos.chatbot.db.repositories.DocumentRepository
+import com.aos.chatbot.parsers.UnreadableDocumentException
+import com.aos.chatbot.routes.dto.DocumentListResponse
+import com.aos.chatbot.routes.dto.DuplicateDocumentResponse
+import com.aos.chatbot.routes.dto.EmptyDocumentResponse
+import com.aos.chatbot.routes.dto.InvalidUploadResponse
+import com.aos.chatbot.routes.dto.UnreadableDocumentResponse
+import com.aos.chatbot.services.DocumentService
+import com.aos.chatbot.services.EmptyDocumentException
+import com.aos.chatbot.services.InvalidUploadException
+import com.aos.chatbot.services.UploadResult
+import io.ktor.http.HttpStatusCode
+import io.ktor.http.content.PartData
+import io.ktor.http.content.forEachPart
+import io.ktor.http.content.streamProvider
+import io.ktor.server.application.call
+import io.ktor.server.request.receiveMultipart
+import io.ktor.server.response.respond
+import io.ktor.server.routing.Route
+import io.ktor.server.routing.delete
+import io.ktor.server.routing.get
+import io.ktor.server.routing.post
+import io.ktor.server.routing.route
+
+fun Route.adminRoutes(documentService: DocumentService, database: Database) {
+    route("/api/admin") {
+        post("/documents") {
+            var filename: String? = null
+            var fileBytes: ByteArray? = null
+
+            val multipart = call.receiveMultipart()
+            multipart.forEachPart { part ->
+                when (part) {
+                    is PartData.FileItem -> {
+                        filename = part.originalFileName
+                        fileBytes = part.streamProvider().readBytes()
+                    }
+                    else -> {}
+                }
+                part.dispose()
+            }
+
+            val actualFilename = filename ?: ""
+            val actualBytes = fileBytes ?: ByteArray(0)
+
+            try {
+                when (val result = documentService.processDocument(actualFilename, actualBytes)) {
+                    is UploadResult.Created -> {
+                        call.respond(HttpStatusCode.Created, result.document)
+                    }
+                    is UploadResult.Duplicate -> {
+                        call.respond(
+                            HttpStatusCode.Conflict,
+                            DuplicateDocumentResponse(
+                                message = "Document already exists",
+                                existing = result.document
+                            )
+                        )
+                    }
+                }
+            } catch (e: InvalidUploadException) {
+                call.respond(
+                    HttpStatusCode.BadRequest,
+                    InvalidUploadResponse(
+                        reason = e.reason,
+                        message = e.message ?: "Invalid upload"
+                    )
+                )
+            } catch (e: UnreadableDocumentException) {
+                call.respond(
+                    HttpStatusCode.BadRequest,
+                    UnreadableDocumentResponse(
+                        reason = e.reason.code,
+                        message = "Unable to read ${e.fileType} document: ${e.reason.code}"
+                    )
+                )
+            } catch (e: EmptyDocumentException) {
+                call.respond(
+                    HttpStatusCode.BadRequest,
+                    EmptyDocumentResponse(
+                        message = e.message ?: "Document contains no extractable content"
+                    )
+                )
+            }
+        }
+
+        get("/documents") {
+            database.connect().use { conn ->
+                val documents = DocumentRepository(conn).findAll()
+                call.respond(HttpStatusCode.OK, DocumentListResponse(documents = documents, total = documents.size))
+            }
+        }
+
+        delete("/documents/{id}") {
+            val id = call.parameters["id"]?.toLongOrNull()
+                ?: return@delete call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid document ID"))
+
+            database.connect().use { conn ->
+                val deleted = DocumentRepository(conn).delete(id)
+                if (deleted) {
+                    call.respond(HttpStatusCode.NoContent)
+                } else {
+                    call.respond(HttpStatusCode.NotFound, mapOf("error" to "Document not found"))
+                }
+            }
+        }
+    }
+}

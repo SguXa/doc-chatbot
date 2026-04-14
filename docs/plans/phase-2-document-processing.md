@@ -329,33 +329,33 @@ The orchestration follows ADR 0001 (sync), ADR 0002 (race-aware dedup), ADR 0003
 
 Routes are unprotected — see [ADR 0005](../adr/0005-auth-deferred-out-of-phase-2.md). Do NOT add any auth code, placeholder or otherwise.
 
-- [ ] Wire stateless dependencies in `Application.module()`: `ParserFactory`, `AosParser`, `ChunkingService`, `DocumentService`
-- [ ] DocumentService receives the `Database` factory, NOT pre-built repositories or a long-lived `Connection`
-- [ ] Implement `cleanupOrphanTempFiles(documentsPath: String, imagesPath: String): Int`: scan `documentsPath` root for `*.tmp.*`, scan `imagesPath` one level deep (per-document subdirs), delete matches, return combined count. Do NOT recurse deeper. Do NOT touch any file without a `.tmp.` infix
-- [ ] Call `cleanupOrphanTempFiles` AFTER migrations, BEFORE route registration, conditional on `mode in (FULL, ADMIN)`
-- [ ] Log at INFO: `"Startup temp-file cleanup: N orphaned temp files removed (sources: A, images: B)"`
-- [ ] Register `AdminRoutes` only in `MODE=full` and `MODE=admin`; do NOT register in `MODE=client`
-- [ ] `POST /api/admin/documents`: accept multipart file upload, call `documentService.processDocument(...)`
-  - [ ] On `UploadResult.Created` → 201 with full Document JSON
-  - [ ] On `UploadResult.Duplicate` → 409 with `DuplicateDocumentResponse { error="duplicate_document", message, existing }`
-  - [ ] Catch `InvalidUploadException` → 400 `InvalidUploadResponse { error="invalid_upload", reason, message }`
-  - [ ] Catch `UnreadableDocumentException` → 400 `UnreadableDocumentResponse { error="unreadable_document", reason, message }` — do NOT leak POI/PDFBox internals
-  - [ ] Catch `EmptyDocumentException` → 400 `EmptyDocumentResponse { error="empty_content", reason, message }`
-- [ ] `GET /api/admin/documents`: pass-through `documentRepository.findAll()` order, return 200 with `{ documents: [...], total: N }`. The route MUST NOT re-sort
-- [ ] `DELETE /api/admin/documents/{id}`: 204 on success, 404 if not found
-- [ ] DTOs are distinct classes (not unions): `DuplicateDocumentResponse`, `InvalidUploadResponse`, `UnreadableDocumentResponse`, `EmptyDocumentResponse`
-- [ ] `error` field is a stable discriminator (`"invalid_upload"`, `"unreadable_document"`, `"empty_content"`, `"duplicate_document"`) — do not refactor it into an enum yet
-- [ ] Pass raw client filename through to the service (sanitization is the service's job, not the route's)
-- [ ] Emit a startup `WARN` log line in `MODE=full`/`MODE=admin` once at startup: `"Phase 2 admin routes are unprotected — auth is deferred to Phase 4. Restrict this deployment to internal networks."` Do NOT emit in `MODE=client`
-- [ ] Tests use mocked `DocumentService`
-- [ ] Test 201 Created path: assert response body shape and headers
-- [ ] Test 409 Duplicate path: assert `error="duplicate_document"` and `existing` block populated
-- [ ] Test 400 paths: one test per exception type, asserting the correct discriminator and response body
-- [ ] Test that response bodies do NOT contain POI/PDFBox class names or stack traces
-- [ ] Test 404 on DELETE missing
-- [ ] Test GET preserves DocumentService order (do not re-sort in the route)
-- [ ] Test routes are NOT registered in `MODE=client`
-- [ ] Verify: `cd backend && ./gradlew test`
+- [x] Wire stateless dependencies in `Application.module()`: `ParserFactory`, `AosParser`, `ChunkingService`, `DocumentService`
+- [x] DocumentService receives the `Database` factory, NOT pre-built repositories or a long-lived `Connection`
+- [x] Implement `cleanupOrphanTempFiles(documentsPath: String, imagesPath: String): Int`: scan `documentsPath` root for `*.tmp.*`, scan `imagesPath` one level deep (per-document subdirs), delete matches, return combined count. Do NOT recurse deeper. Do NOT touch any file without a `.tmp.` infix
+- [x] Call `cleanupOrphanTempFiles` AFTER migrations, BEFORE route registration, conditional on `mode in (FULL, ADMIN)`
+- [x] Log at INFO: `"Startup temp-file cleanup: N orphaned temp files removed (sources: A, images: B)"`
+- [x] Register `AdminRoutes` only in `MODE=full` and `MODE=admin`; do NOT register in `MODE=client`
+- [x] `POST /api/admin/documents`: accept multipart file upload, call `documentService.processDocument(...)`
+  - [x] On `UploadResult.Created` → 201 with full Document JSON
+  - [x] On `UploadResult.Duplicate` → 409 with `DuplicateDocumentResponse { error="duplicate_document", message, existing }`
+  - [x] Catch `InvalidUploadException` → 400 `InvalidUploadResponse { error="invalid_upload", reason, message }`
+  - [x] Catch `UnreadableDocumentException` → 400 `UnreadableDocumentResponse { error="unreadable_document", reason, message }` — do NOT leak POI/PDFBox internals
+  - [x] Catch `EmptyDocumentException` → 400 `EmptyDocumentResponse { error="empty_content", reason, message }`
+- [x] `GET /api/admin/documents`: pass-through `documentRepository.findAll()` order, return 200 with `{ documents: [...], total: N }`. The route MUST NOT re-sort
+- [x] `DELETE /api/admin/documents/{id}`: 204 on success, 404 if not found
+- [x] DTOs are distinct classes (not unions): `DuplicateDocumentResponse`, `InvalidUploadResponse`, `UnreadableDocumentResponse`, `EmptyDocumentResponse`
+- [x] `error` field is a stable discriminator (`"invalid_upload"`, `"unreadable_document"`, `"empty_content"`, `"duplicate_document"`) — do not refactor it into an enum yet
+- [x] Pass raw client filename through to the service (sanitization is the service's job, not the route's)
+- [x] Emit a startup `WARN` log line in `MODE=full`/`MODE=admin` once at startup: `"Phase 2 admin routes are unprotected — auth is deferred to Phase 4. Restrict this deployment to internal networks."` Do NOT emit in `MODE=client`
+- [x] Tests use mocked `DocumentService`
+- [x] Test 201 Created path: assert response body shape and headers
+- [x] Test 409 Duplicate path: assert `error="duplicate_document"` and `existing` block populated
+- [x] Test 400 paths: one test per exception type, asserting the correct discriminator and response body
+- [x] Test that response bodies do NOT contain POI/PDFBox class names or stack traces
+- [x] Test 404 on DELETE missing
+- [x] Test GET preserves DocumentService order (do not re-sort in the route)
+- [x] Test routes are NOT registered in `MODE=client`
+- [x] Verify: `cd backend && ./gradlew test`
 
 ### Task 15: Final verification and cleanup
 
