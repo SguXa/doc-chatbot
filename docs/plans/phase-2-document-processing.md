@@ -285,38 +285,38 @@ Operation-scoped (NOT singleton). Saves images to disk and writes DB rows. The a
 
 The orchestration follows ADR 0001 (sync), ADR 0002 (race-aware dedup), ADR 0003 (success-only lifecycle), ADR 0004 (rollback deletes its own files; orphan finals are accepted).
 
-- [ ] Constructor takes `database: Database`, `parserFactory: ParserFactory`, `aosParser: AosParser`, `chunkingService: ChunkingService`, `documentsPath: String`, `imagesPath: String`
-- [ ] DocumentService is a singleton; per-call repositories and connections are constructed inside `processDocument`
-- [ ] `UploadResult` sealed class: exactly two variants — `Created(Document)` and `Duplicate(Document)`. No `Failed` variant
-- [ ] `processDocument(originalFilename: String, bytes: ByteArray): UploadResult` — entry point; runs on `Dispatchers.IO`
-- [ ] **Validation step**: extension is `docx` or `pdf`; bytes non-empty; filename non-empty after normalization; raise `InvalidUploadException(reason)` with stable reason discriminator (`unsupported_extension`, `empty_file`, `missing_filename`, etc.)
-- [ ] **Hash step**: compute SHA-256 of bytes before any DB write; populate `Document.fileHash` from this
-- [ ] **Dedup pre-check**: open connection, query `documentRepository.findByHash(hash)`; if hit → return `UploadResult.Duplicate(existing)`
-- [ ] **Source file write**: write to `{documentsPath}/{hash}.{ext}` via temp+atomic-move (`{final}.tmp.{UUID}` → `Files.move ATOMIC_MOVE`)
-- [ ] **Parse step**: `parserFactory.getParser(filename).parse(file)`; let `UnreadableDocumentException` propagate
-- [ ] **AOS post-processing**: `aosParser.process(parsed)`
-- [ ] **Chunking step**: `chunkingService.chunk(processed.textBlocks)`
-- [ ] **Empty-content check**: if zero chunks AND zero images → raise `EmptyDocumentException` (HTTP 400 `empty_content`, no row inserted)
-- [ ] **Image linkage validation**: assert every chunk's `imageRefs` references a real `ImageData`; assert every `ImageData` referenced by at least one chunk; failure → throw to trigger rollback
-- [ ] **Persist phase** (narrow transaction):
-  - [ ] Begin transaction on a fresh connection
-  - [ ] Insert document row → captures `documentId`
-  - [ ] Build `ImageExtractor(imagesPath, ImageRepository(conn))` and call `saveImages(documentId, parsed.images)` BEFORE chunk insert
-  - [ ] Build `ChunkRepository(conn)` and `insertBatch(chunks.map { it.copy(documentId = documentId) })`
-  - [ ] `updateChunkCount(documentId, chunkCount, imageCount)` and `updateIndexedAt(documentId)`
-  - [ ] Commit transaction; close connection
-- [ ] **Race-condition handling**: if document insert raises `SQLException` containing `UNIQUE constraint failed: idx_documents_file_hash_unique`, rollback, look up the now-existing row by hash, and return `UploadResult.Duplicate(existing)`
-- [ ] **Rollback / compensation on any other failure**: rollback DB transaction; delete the source file written above; delete any image files already persisted under `{imagesPath}/{documentId}/`; rethrow original exception
-- [ ] **No `Document` row left behind on failure** (success-only invariant — ADR 0003)
-- [ ] Tests use a file-backed SQLite DB (NOT in-memory), so per-call connection lifecycle is exercised realistically
-- [ ] Test happy paths: docx upload → Created; pdf upload → Created; assert chunks/images/document row counts and indexedAt populated
-- [ ] Test pre-check duplicate: upload same bytes twice → second call returns `Duplicate`, no second insert
-- [ ] Test race duplicate: simulate concurrent uniqueness violation by pre-inserting a row with the same hash between hash compute and insert; assert second call returns `Duplicate`
-- [ ] Test InvalidUploadException variants for each reason discriminator (unsupported extension, empty file, missing filename)
-- [ ] Test UnreadableDocumentException propagation: pass corrupted docx → exception escapes; assert no document row, no chunks, no images, no source file, no image directory
-- [ ] Test EmptyDocumentException: pass valid-but-empty document → exception escapes, no row inserted
-- [ ] Test rollback: induce failure during chunk insert (e.g., mock ChunkRepository to throw); assert document row absent, source file absent, image directory absent
-- [ ] Test image linkage validation failure: feed handcrafted ParsedContent with broken refs → throws, no row inserted
+- [x] Constructor takes `database: Database`, `parserFactory: ParserFactory`, `aosParser: AosParser`, `chunkingService: ChunkingService`, `documentsPath: String`, `imagesPath: String`
+- [x] DocumentService is a singleton; per-call repositories and connections are constructed inside `processDocument`
+- [x] `UploadResult` sealed class: exactly two variants — `Created(Document)` and `Duplicate(Document)`. No `Failed` variant
+- [x] `processDocument(originalFilename: String, bytes: ByteArray): UploadResult` — entry point; runs on `Dispatchers.IO`
+- [x] **Validation step**: extension is `docx` or `pdf`; bytes non-empty; filename non-empty after normalization; raise `InvalidUploadException(reason)` with stable reason discriminator (`unsupported_extension`, `empty_file`, `missing_filename`, etc.)
+- [x] **Hash step**: compute SHA-256 of bytes before any DB write; populate `Document.fileHash` from this
+- [x] **Dedup pre-check**: open connection, query `documentRepository.findByHash(hash)`; if hit → return `UploadResult.Duplicate(existing)`
+- [x] **Source file write**: write to `{documentsPath}/{hash}.{ext}` via temp+atomic-move (`{final}.tmp.{UUID}` → `Files.move ATOMIC_MOVE`)
+- [x] **Parse step**: `parserFactory.getParser(filename).parse(file)`; let `UnreadableDocumentException` propagate
+- [x] **AOS post-processing**: `aosParser.process(parsed)`
+- [x] **Chunking step**: `chunkingService.chunk(processed.textBlocks)`
+- [x] **Empty-content check**: if zero chunks AND zero images → raise `EmptyDocumentException` (HTTP 400 `empty_content`, no row inserted)
+- [x] **Image linkage validation**: assert every chunk's `imageRefs` references a real `ImageData`; assert every `ImageData` referenced by at least one chunk; failure → throw to trigger rollback
+- [x] **Persist phase** (narrow transaction):
+  - [x] Begin transaction on a fresh connection
+  - [x] Insert document row → captures `documentId`
+  - [x] Build `ImageExtractor(imagesPath, ImageRepository(conn))` and call `saveImages(documentId, parsed.images)` BEFORE chunk insert
+  - [x] Build `ChunkRepository(conn)` and `insertBatch(chunks.map { it.copy(documentId = documentId) })`
+  - [x] `updateChunkCount(documentId, chunkCount, imageCount)` and `updateIndexedAt(documentId)`
+  - [x] Commit transaction; close connection
+- [x] **Race-condition handling**: if document insert raises `SQLException` containing `UNIQUE constraint failed: idx_documents_file_hash_unique`, rollback, look up the now-existing row by hash, and return `UploadResult.Duplicate(existing)`
+- [x] **Rollback / compensation on any other failure**: rollback DB transaction; delete the source file written above; delete any image files already persisted under `{imagesPath}/{documentId}/`; rethrow original exception
+- [x] **No `Document` row left behind on failure** (success-only invariant — ADR 0003)
+- [x] Tests use a file-backed SQLite DB (NOT in-memory), so per-call connection lifecycle is exercised realistically
+- [x] Test happy paths: docx upload → Created; pdf upload → Created; assert chunks/images/document row counts and indexedAt populated
+- [x] Test pre-check duplicate: upload same bytes twice → second call returns `Duplicate`, no second insert
+- [x] Test race duplicate: simulate concurrent uniqueness violation by pre-inserting a row with the same hash between hash compute and insert; assert second call returns `Duplicate`
+- [x] Test InvalidUploadException variants for each reason discriminator (unsupported extension, empty file, missing filename)
+- [x] Test UnreadableDocumentException propagation: pass corrupted docx → exception escapes; assert no document row, no chunks, no images, no source file, no image directory
+- [x] Test EmptyDocumentException: pass valid-but-empty document → exception escapes, no row inserted
+- [x] Test rollback: induce failure during chunk insert (e.g., mock ChunkRepository to throw); assert document row absent, source file absent, image directory absent
+- [x] Test image linkage validation failure: feed handcrafted ParsedContent with broken refs → throws, no row inserted
 - [ ] Verify: `cd backend && ./gradlew test`
 
 ### Task 14: Wire DocumentService into Application.kt and add admin routes
