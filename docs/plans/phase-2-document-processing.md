@@ -133,18 +133,18 @@ The image linkage contract and pageNumber policy these models implement are in A
 
 All repositories take `java.sql.Connection` in the constructor, are operation-scoped, and use `PreparedStatement` for every query.
 
-- [ ] DocumentRepository: `insert`, `findById`, `findAll`, `findByHash`, `updateChunkCount`, `updateIndexedAt`, `delete`
-- [ ] DocumentRepository.findAll emits `ORDER BY created_at DESC, id DESC` (newest first, deterministic tie-break)
-- [ ] ChunkRepository: `insertBatch`, `findByDocumentId`, `findAll`, `deleteByDocumentId`, `count`
-- [ ] ChunkRepository.findByDocumentId and findAll emit `ORDER BY id ASC` (preserves parser traversal order)
-- [ ] ChunkRepository serializes `imageRefs: List<String>` to a JSON array string on insert; empty list → SQL `NULL`
-- [ ] ChunkRepository deserializes `image_refs` column on read; SQL `NULL` → `emptyList()`
-- [ ] ImageRepository: `insert`, `findByDocumentId` (`ORDER BY id ASC`), `deleteByDocumentId`
-- [ ] KDoc on each repository class: instances are operation-scoped, must not outlive the injected Connection
-- [ ] KDoc on each list-returning method: document its `ORDER BY` clause at the call site
-- [ ] Tests use in-memory SQLite (`:memory:`) with a single connection per test (same pattern as `MigrationsTest`)
-- [ ] Tests cover insert/find/delete round-trips, ordering (insert in non-sorted order, assert sorted result), `imageRefs` JSON round-trip including empty-list-as-NULL, and FK cascade behavior
-- [ ] Verify: `cd backend && ./gradlew test`
+- [x] DocumentRepository: `insert`, `findById`, `findAll`, `findByHash`, `updateChunkCount`, `updateIndexedAt`, `delete`
+- [x] DocumentRepository.findAll emits `ORDER BY created_at DESC, id DESC` (newest first, deterministic tie-break)
+- [x] ChunkRepository: `insertBatch`, `findByDocumentId`, `findAll`, `deleteByDocumentId`, `count`
+- [x] ChunkRepository.findByDocumentId and findAll emit `ORDER BY id ASC` (preserves parser traversal order)
+- [x] ChunkRepository serializes `imageRefs: List<String>` to a JSON array string on insert; empty list → SQL `NULL`
+- [x] ChunkRepository deserializes `image_refs` column on read; SQL `NULL` → `emptyList()`
+- [x] ImageRepository: `insert`, `findByDocumentId` (`ORDER BY id ASC`), `deleteByDocumentId`
+- [x] KDoc on each repository class: instances are operation-scoped, must not outlive the injected Connection
+- [x] KDoc on each list-returning method: document its `ORDER BY` clause at the call site
+- [x] Tests use in-memory SQLite (`:memory:`) with a single connection per test (same pattern as `MigrationsTest`)
+- [x] Tests cover insert/find/delete round-trips, ordering (insert in non-sorted order, assert sorted result), `imageRefs` JSON round-trip including empty-list-as-NULL, and FK cascade behavior
+- [x] Verify: `cd backend && ./gradlew test`
 
 ### Task 7: Create DocumentParser interface and ParserFactory
 
