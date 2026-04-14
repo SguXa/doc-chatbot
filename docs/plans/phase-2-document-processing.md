@@ -192,20 +192,20 @@ Implements the image linkage contract (ARCHITECTURE.md §8.4) and pageNumber pol
 
 Implements the image linkage contract (ARCHITECTURE.md §8.4) and pageNumber policy (§8.5).
 
-- [ ] Page-by-page text extraction via `PDFTextStripper`
-- [ ] Heuristic heading detection (ALL CAPS short lines followed by body text)
-- [ ] Image extraction from `PDPage` resources (`PDImageXObject`)
-- [ ] Filename convention `img_p{PAGE}_{NNN}.{ext}`, sequence resets per page
-- [ ] Set `pageNumber = N` on every TextBlock and ImageData emitted from page N (1-indexed)
-- [ ] Image-only pages create a synthetic empty TextBlock; text-only pages have `imageRefs = emptyList()`
-- [ ] Explicit `doc.isEncrypted` check at load time → raise `UnreadableDocumentException(EncryptedDocument, "pdf")` before extraction
-- [ ] Wrap parse body in try/catch translating PDFBox/IO exceptions into `UnreadableDocumentException`
-- [ ] Log unreadable cases at INFO with sanitized filename
-- [ ] Tests use programmatically created PDF fixtures; cover single-page text+image, two-page (sequence resets), image-only page, multi-image page, text-only page
-- [ ] Tests assert referential integrity invariant and filename convention
-- [ ] Tests for corrupted input: plain-text-as-PDF, truncated PDF, corrupted xref, 0-byte file, password-protected via both `InvalidPasswordException` and `doc.isEncrypted` paths
-- [ ] `@AfterEach` invariant check: every TextBlock and ImageData has `pageNumber != null`
-- [ ] Verify: `cd backend && ./gradlew test`
+- [x] Page-by-page text extraction via `PDFTextStripper`
+- [x] Heuristic heading detection (ALL CAPS short lines followed by body text)
+- [x] Image extraction from `PDPage` resources (`PDImageXObject`)
+- [x] Filename convention `img_p{PAGE}_{NNN}.{ext}`, sequence resets per page
+- [x] Set `pageNumber = N` on every TextBlock and ImageData emitted from page N (1-indexed)
+- [x] Image-only pages create a synthetic empty TextBlock; text-only pages have `imageRefs = emptyList()`
+- [x] Explicit `doc.isEncrypted` check at load time → raise `UnreadableDocumentException(EncryptedDocument, "pdf")` before extraction
+- [x] Wrap parse body in try/catch translating PDFBox/IO exceptions into `UnreadableDocumentException`
+- [x] Log unreadable cases at INFO with sanitized filename
+- [x] Tests use programmatically created PDF fixtures; cover single-page text+image, two-page (sequence resets), image-only page, multi-image page, text-only page
+- [x] Tests assert referential integrity invariant and filename convention
+- [x] Tests for corrupted input: plain-text-as-PDF, truncated PDF, corrupted xref, 0-byte file, password-protected via both `InvalidPasswordException` and `doc.isEncrypted` paths
+- [x] `@AfterEach` invariant check: every TextBlock and ImageData has `pageNumber != null`
+- [x] Verify: `cd backend && ./gradlew test`
 
 ### Task 10: Implement ChunkingService
 
