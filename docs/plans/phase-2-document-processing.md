@@ -153,11 +153,11 @@ All repositories take `java.sql.Connection` in the constructor, are operation-sc
 - Create: `backend/src/main/kotlin/com/aos/chatbot/parsers/ParserFactory.kt`
 - Create: `backend/src/test/kotlin/com/aos/chatbot/parsers/ParserFactoryTest.kt`
 
-- [ ] Define `DocumentParser` interface: `parse(file: File): ParsedContent`, `supportedExtensions(): List<String>`
-- [ ] Implement `ParserFactory` mapping `.docx` → WordParser, `.pdf` → PdfParser
-- [ ] Throw `IllegalArgumentException` for unsupported extensions
-- [ ] Test: correct parser selected for each supported extension; unknown extension throws
-- [ ] Verify: `cd backend && ./gradlew test`
+- [x] Define `DocumentParser` interface: `parse(file: File): ParsedContent`, `supportedExtensions(): List<String>`
+- [x] Implement `ParserFactory` mapping `.docx` → WordParser, `.pdf` → PdfParser
+- [x] Throw `IllegalArgumentException` for unsupported extensions
+- [x] Test: correct parser selected for each supported extension; unknown extension throws
+- [x] Verify: `cd backend && ./gradlew test`
 
 ### Task 8: Implement WordParser (Apache POI)
 
