@@ -59,12 +59,12 @@ fun Application.module() {
             cleanedCount.total, cleanedCount.sources, cleanedCount.images)
     }
 
+    // Wire stateless dependencies
+    val database = Database(appConfig.databasePath)
+
     environment.monitor.subscribe(ApplicationStopped) {
         connection.close()
     }
-
-    // Wire stateless dependencies
-    val database = Database(appConfig.databasePath)
     val parserFactory = ParserFactory()
     val aosParser = AosParser()
     val chunkingService = ChunkingService()
@@ -78,7 +78,7 @@ fun Application.module() {
     )
 
     routing {
-        healthRoutes(connection)
+        healthRoutes(database)
         if (appConfig.mode in listOf(AppMode.FULL, AppMode.ADMIN)) {
             adminRoutes(documentService, database, appConfig.documentsPath, appConfig.imagesPath)
         }

@@ -27,22 +27,53 @@ import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.routing.route
 
+private const val MAX_UPLOAD_SIZE = 100L * 1024 * 1024 // 100 MB
+
 fun Route.adminRoutes(documentService: DocumentService, database: Database, documentsPath: String = "", imagesPath: String = "") {
     route("/api/admin") {
         post("/documents") {
             var filename: String? = null
             var fileBytes: ByteArray? = null
+            var oversize = false
 
             val multipart = call.receiveMultipart()
             multipart.forEachPart { part ->
                 when (part) {
                     is PartData.FileItem -> {
                         filename = part.originalFileName
-                        fileBytes = part.streamProvider().readBytes()
+                        val stream = part.streamProvider()
+                        val buffer = java.io.ByteArrayOutputStream()
+                        val readBuf = ByteArray(8192)
+                        var totalRead = 0L
+                        while (true) {
+                            val n = stream.read(readBuf)
+                            if (n == -1) break
+                            totalRead += n
+                            if (totalRead > MAX_UPLOAD_SIZE) {
+                                oversize = true
+                                break
+                            }
+                            buffer.write(readBuf, 0, n)
+                        }
+                        stream.close()
+                        if (!oversize) {
+                            fileBytes = buffer.toByteArray()
+                        }
                     }
                     else -> {}
                 }
                 part.dispose()
+            }
+
+            if (oversize) {
+                call.respond(
+                    HttpStatusCode.PayloadTooLarge,
+                    InvalidUploadResponse(
+                        reason = "file_too_large",
+                        message = "File exceeds maximum upload size of ${MAX_UPLOAD_SIZE / (1024 * 1024)} MB"
+                    )
+                )
+                return@post
             }
 
             val actualFilename = filename ?: ""
@@ -119,9 +150,10 @@ fun Route.adminRoutes(documentService: DocumentService, database: Database, docu
                     val imageDir = Path.of(imagesPath, id.toString())
                     if (Files.exists(imageDir)) {
                         runCatching {
-                            Files.walk(imageDir)
-                                .sorted(Comparator.reverseOrder())
-                                .forEach { Files.deleteIfExists(it) }
+                            Files.walk(imageDir).use { stream ->
+                                stream.sorted(Comparator.reverseOrder())
+                                    .forEach { Files.deleteIfExists(it) }
+                            }
                         }
                     }
                 }

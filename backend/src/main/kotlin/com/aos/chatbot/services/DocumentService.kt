@@ -198,9 +198,10 @@ class DocumentService(
                         val imageDir = Path.of(imagesPath, documentId.toString())
                         if (Files.exists(imageDir)) {
                             runCatching {
-                                Files.walk(imageDir)
-                                    .sorted(Comparator.reverseOrder())
-                                    .forEach { Files.deleteIfExists(it) }
+                                Files.walk(imageDir).use { stream ->
+                                    stream.sorted(Comparator.reverseOrder())
+                                        .forEach { Files.deleteIfExists(it) }
+                                }
                             }
                         }
                     }

@@ -367,9 +367,12 @@ class AdminRoutesTest {
             install(ContentNegotiation) { json() }
             routing {
                 // Simulate CLIENT mode: only health routes, no admin routes
+                val mockDatabase = mockk<Database>()
                 val mockConnection = mockk<Connection>()
+                every { mockDatabase.connect() } returns mockConnection
                 every { mockConnection.isValid(any()) } returns true
-                healthRoutes(mockConnection)
+                every { mockConnection.close() } returns Unit
+                healthRoutes(mockDatabase)
             }
         }
 
