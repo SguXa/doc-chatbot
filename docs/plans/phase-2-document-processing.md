@@ -168,21 +168,21 @@ All repositories take `java.sql.Connection` in the constructor, are operation-sc
 
 Implements the image linkage contract (ARCHITECTURE.md §8.4) and pageNumber policy (§8.5).
 
-- [ ] Extract paragraphs, headings (style-based), tables (rendered as text with `|` separators), and images via `XWPFPictureData`
-- [ ] Detect section numbers (e.g., `3.2.1 Component Setup` → `sectionId = "3.2.1"`)
-- [ ] Concatenate consecutive body paragraphs into a single TextBlock; flush on new heading
-- [ ] Generate image filenames as `img_{NNN}.{ext}`, sequential, 3-digit padding, in document traversal order
-- [ ] Maintain `currentTextBlock` and `pendingImageRefs` state during traversal so images attach to the next text TextBlock
-- [ ] Trailing images create a synthetic empty TextBlock to preserve the linkage contract
-- [ ] Set `pageNumber = null` on every emitted TextBlock and ImageData (Word does not expose reliable page numbers)
-- [ ] Define `UnreadableDocumentException(reason: UnreadableReason, fileType: String, cause: Throwable?)` with reason variants for: corrupted, password-protected, unsupported-version, ole2-instead-of-ooxml, etc.
-- [ ] Wrap parse body in try/catch translating POI/IO exceptions into `UnreadableDocumentException`; never let raw POI exceptions escape
-- [ ] Log unreadable cases at INFO with sanitized filename and reason code (not ERROR)
-- [ ] Tests use programmatically created `.docx` fixtures; cover heading detection, table rendering, image attachment scenarios (text→image→text, leading image, trailing image, table-with-inline-image, multiple images per block)
-- [ ] Tests assert referential integrity invariant: every image filename appears on exactly one TextBlock; every TextBlock ref points to a real ImageData
-- [ ] Tests for corrupted input: plain-ASCII file, truncated docx, 0-byte file, password-protected docx — every path raises `UnreadableDocumentException`, never raw POI types
-- [ ] `@AfterEach` invariant check: every TextBlock and ImageData in test fixtures has `pageNumber == null`
-- [ ] Verify: `cd backend && ./gradlew test`
+- [x] Extract paragraphs, headings (style-based), tables (rendered as text with `|` separators), and images via `XWPFPictureData`
+- [x] Detect section numbers (e.g., `3.2.1 Component Setup` → `sectionId = "3.2.1"`)
+- [x] Concatenate consecutive body paragraphs into a single TextBlock; flush on new heading
+- [x] Generate image filenames as `img_{NNN}.{ext}`, sequential, 3-digit padding, in document traversal order
+- [x] Maintain `currentTextBlock` and `pendingImageRefs` state during traversal so images attach to the next text TextBlock
+- [x] Trailing images create a synthetic empty TextBlock to preserve the linkage contract
+- [x] Set `pageNumber = null` on every emitted TextBlock and ImageData (Word does not expose reliable page numbers)
+- [x] Define `UnreadableDocumentException(reason: UnreadableReason, fileType: String, cause: Throwable?)` with reason variants for: corrupted, password-protected, unsupported-version, ole2-instead-of-ooxml, etc.
+- [x] Wrap parse body in try/catch translating POI/IO exceptions into `UnreadableDocumentException`; never let raw POI exceptions escape
+- [x] Log unreadable cases at INFO with sanitized filename and reason code (not ERROR)
+- [x] Tests use programmatically created `.docx` fixtures; cover heading detection, table rendering, image attachment scenarios (text→image→text, leading image, trailing image, table-with-inline-image, multiple images per block)
+- [x] Tests assert referential integrity invariant: every image filename appears on exactly one TextBlock; every TextBlock ref points to a real ImageData
+- [x] Tests for corrupted input: plain-ASCII file, truncated docx, 0-byte file, password-protected docx — every path raises `UnreadableDocumentException`, never raw POI types
+- [x] `@AfterEach` invariant check: every TextBlock and ImageData in test fixtures has `pageNumber == null`
+- [x] Verify: `cd backend && ./gradlew test`
 
 ### Task 9: Implement PdfParser (Apache PDFBox)
 
