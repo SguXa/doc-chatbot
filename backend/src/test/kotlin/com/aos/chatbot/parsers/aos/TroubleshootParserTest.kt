@@ -3,6 +3,7 @@ package com.aos.chatbot.parsers.aos
 import com.aos.chatbot.models.TextBlock
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class TroubleshootParserTest {
@@ -26,10 +27,10 @@ class TroubleshootParserTest {
         val out = result[0]
         assertEquals("troubleshoot", out.type)
         assertEquals("MA-03", out.sectionId)
-        assert(out.content.contains("Connection Timeout"))
-        assert(out.content.contains("Symptom:"))
-        assert(out.content.contains("Cause:"))
-        assert(out.content.contains("Solution:"))
+        assertTrue(out.content.contains("Connection Timeout"))
+        assertTrue(out.content.contains("Symptom:"))
+        assertTrue(out.content.contains("Cause:"))
+        assertTrue(out.content.contains("Solution:"))
     }
 
     @Test
@@ -59,8 +60,8 @@ class TroubleshootParserTest {
 
         assertEquals("troubleshoot", result[0].type)
         assertEquals("MA-05", result[0].sectionId)
-        assert(result[0].content.contains("Cause:"))
-        assert(result[0].content.contains("Solution:"))
+        assertTrue(result[0].content.contains("Cause:"))
+        assertTrue(result[0].content.contains("Solution:"))
     }
 
     @Test
@@ -176,7 +177,7 @@ class TroubleshootParserTest {
 
         val result = parser.process(listOf(block))
 
-        assert(result[0].content.contains("Delete temporary files."))
-        assert(result[0].content.contains("Run cleanup script."))
+        assertTrue(result[0].content.contains("Delete temporary files."))
+        assertTrue(result[0].content.contains("Run cleanup script."))
     }
 }

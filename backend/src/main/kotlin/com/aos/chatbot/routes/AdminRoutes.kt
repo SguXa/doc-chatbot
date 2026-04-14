@@ -3,6 +3,8 @@ package com.aos.chatbot.routes
 import com.aos.chatbot.db.Database
 import com.aos.chatbot.db.repositories.DocumentRepository
 import com.aos.chatbot.parsers.UnreadableDocumentException
+import java.nio.file.Files
+import java.nio.file.Path
 import com.aos.chatbot.routes.dto.DocumentListResponse
 import com.aos.chatbot.routes.dto.DuplicateDocumentResponse
 import com.aos.chatbot.routes.dto.EmptyDocumentResponse
@@ -25,7 +27,7 @@ import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.routing.route
 
-fun Route.adminRoutes(documentService: DocumentService, database: Database) {
+fun Route.adminRoutes(documentService: DocumentService, database: Database, documentsPath: String = "", imagesPath: String = "") {
     route("/api/admin") {
         post("/documents") {
             var filename: String? = null
@@ -99,12 +101,32 @@ fun Route.adminRoutes(documentService: DocumentService, database: Database) {
                 ?: return@delete call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid document ID"))
 
             database.connect().use { conn ->
-                val deleted = DocumentRepository(conn).delete(id)
-                if (deleted) {
-                    call.respond(HttpStatusCode.NoContent)
-                } else {
+                val repo = DocumentRepository(conn)
+                val doc = repo.findById(id)
+                if (doc == null) {
                     call.respond(HttpStatusCode.NotFound, mapOf("error" to "Document not found"))
+                    return@use
                 }
+                repo.delete(id)
+
+                // Clean up source file
+                if (documentsPath.isNotEmpty()) {
+                    val sourceFile = Path.of(documentsPath, "${doc.fileHash}.${doc.fileType}")
+                    runCatching { Files.deleteIfExists(sourceFile) }
+                }
+                // Clean up image directory
+                if (imagesPath.isNotEmpty()) {
+                    val imageDir = Path.of(imagesPath, id.toString())
+                    if (Files.exists(imageDir)) {
+                        runCatching {
+                            Files.walk(imageDir)
+                                .sorted(Comparator.reverseOrder())
+                                .forEach { Files.deleteIfExists(it) }
+                        }
+                    }
+                }
+
+                call.respond(HttpStatusCode.NoContent)
             }
         }
     }

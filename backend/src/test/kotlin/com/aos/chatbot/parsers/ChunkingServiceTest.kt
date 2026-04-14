@@ -92,13 +92,16 @@ class ChunkingServiceTest {
 
         assertTrue(result.size >= 2, "Expected at least 2 chunks")
 
-        // Verify overlap: the end of one chunk should appear at the start of the next
+        // Verify overlap: trailing words of chunk[i] should appear near the start of chunk[i+1]
         for (i in 0 until result.size - 1) {
-            val currentWords = result[i].content.split(Regex("\\s+"))
+            val currentWords = result[i].content.split(Regex("\\s+")).filter { it.isNotEmpty() }
             val nextContent = result[i + 1].content
-            // At least some trailing content of current should appear in next
-            val hasOverlap = currentWords.any { word -> nextContent.contains(word) }
-            assertTrue(hasOverlap, "Expected overlap between chunk $i and chunk ${i + 1}")
+            // The last few words of current chunk should appear in the next chunk
+            val trailingPhrase = currentWords.takeLast(3).joinToString(" ")
+            assertTrue(
+                nextContent.contains(trailingPhrase),
+                "Expected trailing phrase '$trailingPhrase' of chunk $i to appear in chunk ${i + 1}, but next chunk was: '${nextContent.take(100)}'"
+            )
         }
     }
 

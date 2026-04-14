@@ -127,6 +127,7 @@ class DocumentService(
 
             var documentId: Long? = null
             var conn: Connection? = null
+            var committed = false
             try {
                 conn = database.connect()
                 conn.autoCommit = false
@@ -173,6 +174,7 @@ class DocumentService(
                 docRepo.updateIndexedAt(documentId)
 
                 conn.commit()
+                committed = true
 
                 // Re-read committed state
                 val finalDoc = docRepo.findById(documentId)!!
@@ -181,29 +183,32 @@ class DocumentService(
 
                 UploadResult.Created(finalDoc)
             } catch (e: Exception) {
-                // Rollback / compensation
-                try {
-                    conn?.rollback()
-                } catch (_: Exception) {
+                // Rollback / compensation — only clean up if transaction was NOT committed
+                if (!committed) {
+                    try {
+                        conn?.rollback()
+                    } catch (_: Exception) {
+                    }
+
+                    // Delete source file
+                    runCatching { Files.deleteIfExists(finalPath) }
+
+                    // Delete image directory if it was created
+                    if (documentId != null) {
+                        val imageDir = Path.of(imagesPath, documentId.toString())
+                        if (Files.exists(imageDir)) {
+                            runCatching {
+                                Files.walk(imageDir)
+                                    .sorted(Comparator.reverseOrder())
+                                    .forEach { Files.deleteIfExists(it) }
+                            }
+                        }
+                    }
                 }
+
                 try {
                     conn?.close()
                 } catch (_: Exception) {
-                }
-
-                // Delete source file
-                runCatching { Files.deleteIfExists(finalPath) }
-
-                // Delete image directory if it was created
-                if (documentId != null) {
-                    val imageDir = Path.of(imagesPath, documentId.toString())
-                    if (Files.exists(imageDir)) {
-                        runCatching {
-                            Files.walk(imageDir)
-                                .sorted(Comparator.reverseOrder())
-                                .forEach { Files.deleteIfExists(it) }
-                        }
-                    }
                 }
 
                 throw e

@@ -16,8 +16,6 @@ class UnreadableDocumentException(
 enum class UnreadableReason(val code: String) {
     CORRUPTED("corrupted"),
     PASSWORD_PROTECTED("password_protected"),
-    UNSUPPORTED_VERSION("unsupported_version"),
     OLE2_INSTEAD_OF_OOXML("ole2_instead_of_ooxml"),
-    ENCRYPTED("encrypted"),
-    INVALID_FORMAT("invalid_format")
+    ENCRYPTED("encrypted")
 }

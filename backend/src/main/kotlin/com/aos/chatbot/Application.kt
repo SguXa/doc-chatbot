@@ -80,7 +80,7 @@ fun Application.module() {
     routing {
         healthRoutes(connection)
         if (appConfig.mode in listOf(AppMode.FULL, AppMode.ADMIN)) {
-            adminRoutes(documentService, database)
+            adminRoutes(documentService, database, appConfig.documentsPath, appConfig.imagesPath)
         }
     }
 
@@ -106,8 +106,8 @@ fun cleanupOrphanTempFiles(documentsPath: String, imagesPath: String): CleanupRe
         Files.list(docsDir).use { stream ->
             stream.filter { Files.isRegularFile(it) && tempFilePattern.matches(it.fileName.toString()) }
                 .forEach { path ->
-                    runCatching { Files.deleteIfExists(path) }
-                    sourceCount++
+                    val deleted = runCatching { Files.deleteIfExists(path) }.getOrDefault(false)
+                    if (deleted) sourceCount++
                 }
         }
     }
@@ -120,8 +120,8 @@ fun cleanupOrphanTempFiles(documentsPath: String, imagesPath: String): CleanupRe
                 Files.list(subdir).use { fileStream ->
                     fileStream.filter { Files.isRegularFile(it) && tempFilePattern.matches(it.fileName.toString()) }
                         .forEach { path ->
-                            runCatching { Files.deleteIfExists(path) }
-                            imageCount++
+                            val deleted = runCatching { Files.deleteIfExists(path) }.getOrDefault(false)
+                            if (deleted) imageCount++
                         }
                 }
             }

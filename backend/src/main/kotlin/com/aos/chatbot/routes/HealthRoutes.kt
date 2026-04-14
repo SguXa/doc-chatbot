@@ -19,7 +19,7 @@ fun Route.healthRoutes(connection: Connection) {
         get("/ready") {
             try {
                 val ready = withContext(Dispatchers.IO) {
-                    synchronized(connection) { connection.isValid(2) }
+                    connection.isValid(2)
                 }
                 if (ready) {
                     call.respond(mapOf("status" to "ready"))

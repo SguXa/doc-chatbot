@@ -434,7 +434,7 @@ CREATE TABLE chunks (
     page_number INTEGER,
     section_id TEXT,                    -- '3.2.1' | 'MA-03'
     heading TEXT,                       -- Section heading for context
-    embedding BLOB NOT NULL,            -- Float32 array as bytes
+    embedding BLOB,                     -- Float32 array as bytes (nullable until Phase 3)
     image_refs TEXT,                    -- JSON array of image filenames
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     
@@ -468,6 +468,7 @@ CREATE INDEX idx_chunks_document ON chunks(document_id);
 CREATE INDEX idx_chunks_content_type ON chunks(content_type);
 CREATE INDEX idx_chunks_section ON chunks(section_id);
 CREATE INDEX idx_images_document ON images(document_id);
+CREATE UNIQUE INDEX idx_documents_file_hash_unique ON documents(file_hash);
 ```
 
 ### 6.2 Embedding Storage
