@@ -89,17 +89,17 @@ See [ADR 0002](../adr/0002-file-hash-unique-without-not-null.md) for why we add 
 
 Both paths derive from `app.data.path` via HOCON substitution, with optional independent overrides via `DOCUMENTS_PATH` and `IMAGES_PATH`. See ARCHITECTURE.md §12.3.
 
-- [ ] Add `app.paths.documents` and `app.paths.images` blocks to `application.conf` with HOCON defaults derived from `app.data.path` and env-var overrides
-- [ ] Add `documentsPath: String` and `imagesPath: String` fields to `AppConfig` data class
-- [ ] Read both paths in `AppConfig.from(environment)` via `config.property(...).getString()`
-- [ ] Add AppConfigTest case: only `DATA_PATH` set → both paths derive correctly
-- [ ] Add AppConfigTest case: `DOCUMENTS_PATH` overrides documents independently of images
-- [ ] Add AppConfigTest case: `IMAGES_PATH` overrides images independently of documents
-- [ ] Add AppConfigTest case: both overrides honored together
-- [ ] Add AppConfigTest case: defaults only → `./data/documents` and `./data/images`
-- [ ] Update `.env.example` comment block to explain default derivation and when overrides are needed
-- [ ] Add a `## Configuration` section to README.md listing the four path env vars
-- [ ] Verify: `cd backend && ./gradlew test`
+- [x] Add `app.paths.documents` and `app.paths.images` blocks to `application.conf` with HOCON defaults derived from `app.data.path` and env-var overrides
+- [x] Add `documentsPath: String` and `imagesPath: String` fields to `AppConfig` data class
+- [x] Read both paths in `AppConfig.from(environment)` via `config.property(...).getString()`
+- [x] Add AppConfigTest case: only `DATA_PATH` set → both paths derive correctly
+- [x] Add AppConfigTest case: `DOCUMENTS_PATH` overrides documents independently of images
+- [x] Add AppConfigTest case: `IMAGES_PATH` overrides images independently of documents
+- [x] Add AppConfigTest case: both overrides honored together
+- [x] Add AppConfigTest case: defaults only → `./data/documents` and `./data/images`
+- [x] Update `.env.example` comment block to explain default derivation and when overrides are needed
+- [x] Add a `## Configuration` section to README.md listing the four path env vars
+- [x] Verify: `cd backend && ./gradlew test`
 
 ### Task 5: Create data models for document processing
 

@@ -79,6 +79,19 @@ cd frontend
 npm run lint
 ```
 
+## Configuration
+
+Path-related environment variables derive from a single base (`DATA_PATH`). Setting only `DATA_PATH` is sufficient for normal deployments.
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `DATA_PATH` | `./data` | Base data directory |
+| `DATABASE_PATH` | `./data/aos.db` | SQLite database file |
+| `DOCUMENTS_PATH` | `${DATA_PATH}/documents` | Uploaded source documents |
+| `IMAGES_PATH` | `${DATA_PATH}/images` | Extracted images |
+
+`DOCUMENTS_PATH` and `IMAGES_PATH` may be overridden independently when ops needs to mount them on separate volumes. See `.env.example` for all available variables.
+
 ## Project Structure
 
 ```

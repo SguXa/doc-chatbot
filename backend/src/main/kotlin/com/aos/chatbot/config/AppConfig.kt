@@ -22,7 +22,9 @@ data class AppConfig(
     val port: Int,
     val host: String,
     val databasePath: String,
-    val dataPath: String
+    val dataPath: String,
+    val documentsPath: String,
+    val imagesPath: String
 ) {
     companion object {
         fun from(environment: ApplicationEnvironment): AppConfig {
@@ -33,7 +35,9 @@ data class AppConfig(
                     ?: throw IllegalArgumentException("PORT must be a valid integer"),
                 host = config.property("ktor.deployment.host").getString(),
                 databasePath = config.property("app.database.path").getString(),
-                dataPath = config.property("app.data.path").getString()
+                dataPath = config.property("app.data.path").getString(),
+                documentsPath = config.property("app.paths.documents").getString(),
+                imagesPath = config.property("app.paths.images").getString()
             )
         }
     }
