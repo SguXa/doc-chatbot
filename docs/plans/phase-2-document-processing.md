@@ -111,15 +111,15 @@ Both paths derive from `app.data.path` via HOCON substitution, with optional ind
 
 The image linkage contract and pageNumber policy these models implement are in ARCHITECTURE.md §8.4 and §8.5 — link to them from KDoc rather than duplicating the prose here.
 
-- [ ] Create `Document` data class with id, filename, fileType, fileSize, fileHash (non-null at the model layer), chunkCount, imageCount, indexedAt, createdAt
-- [ ] Create `Chunk` data class with id, documentId, content, contentType, pageNumber, sectionId, heading, embedding (nullable ByteArray), imageRefs (`List<String>`), createdAt
-- [ ] Create `ExtractedImage` data class with id, documentId, filename, path, pageNumber, caption, description, embedding, createdAt
-- [ ] Create `ParsedContent` with `textBlocks: List<TextBlock>`, `images: List<ImageData>`, `metadata: Map<String,String>`
-- [ ] Create `TextBlock` with content, type, pageNumber, sectionId, heading, imageRefs
-- [ ] Create `ImageData` with filename, data, pageNumber, caption
-- [ ] Annotate models needed by API responses with `@Serializable` (Document, Chunk)
-- [ ] In KDoc on `ParsedContent`, link to ARCHITECTURE.md §8.4 (image linkage contract)
-- [ ] In KDoc on `TextBlock` and `ImageData`, link to ARCHITECTURE.md §8.5 (pageNumber policy)
+- [x] Create `Document` data class with id, filename, fileType, fileSize, fileHash (non-null at the model layer), chunkCount, imageCount, indexedAt, createdAt
+- [x] Create `Chunk` data class with id, documentId, content, contentType, pageNumber, sectionId, heading, embedding (nullable ByteArray), imageRefs (`List<String>`), createdAt
+- [x] Create `ExtractedImage` data class with id, documentId, filename, path, pageNumber, caption, description, embedding, createdAt
+- [x] Create `ParsedContent` with `textBlocks: List<TextBlock>`, `images: List<ImageData>`, `metadata: Map<String,String>`
+- [x] Create `TextBlock` with content, type, pageNumber, sectionId, heading, imageRefs
+- [x] Create `ImageData` with filename, data, pageNumber, caption
+- [x] Annotate models needed by API responses with `@Serializable` (Document, Chunk)
+- [x] In KDoc on `ParsedContent`, link to ARCHITECTURE.md §8.4 (image linkage contract)
+- [x] In KDoc on `TextBlock` and `ImageData`, link to ARCHITECTURE.md §8.5 (pageNumber policy)
 
 ### Task 6: Create DocumentRepository, ChunkRepository, ImageRepository
 
