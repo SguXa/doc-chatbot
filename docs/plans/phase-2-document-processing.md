@@ -317,7 +317,7 @@ The orchestration follows ADR 0001 (sync), ADR 0002 (race-aware dedup), ADR 0003
 - [x] Test EmptyDocumentException: pass valid-but-empty document → exception escapes, no row inserted
 - [x] Test rollback: induce failure during chunk insert (e.g., mock ChunkRepository to throw); assert document row absent, source file absent, image directory absent
 - [x] Test image linkage validation failure: feed handcrafted ParsedContent with broken refs → throws, no row inserted
-- [ ] Verify: `cd backend && ./gradlew test`
+- [x] Verify: `cd backend && ./gradlew test`
 
 ### Task 14: Wire DocumentService into Application.kt and add admin routes
 
