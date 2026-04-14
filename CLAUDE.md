@@ -1,6 +1,21 @@
-# AOS Documentation Chatbot
+# AOS Documentation Chatbot — Repository Instructions
 
-An offline RAG chatbot for AOS technical documentation. Users ask questions, the system retrieves relevant chunks from indexed Word/PDF documents and generates answers using a local LLM.
+This file is for repository conventions, coding rules, and workflow guidance only. It is **not** a product spec or an implementation plan.
+
+## Sources of Truth
+
+| Source | Purpose | When to consult |
+|--------|---------|-----------------|
+| `docs/ARCHITECTURE.md` | Stable behavior, API, data, and deployment contracts | When you need to know **what** the system does or **what shape** an interface has. |
+| `docs/plans/*.md` | Active execution plans for the current phase | When you need to know **what is being built right now** and **in what order**. The plan in the active branch is authoritative for current implementation work. |
+| `docs/plans/completed/*.md` | Historical record of finished phases | Reference only. Do not modify. |
+| `docs/adr/*.md` | Architectural decision records — the **why** behind durable choices | When you need rationale for a design that looks unusual or restrictive. |
+| `CLAUDE.md` (this file) | Repository conventions and coding guidance | When in doubt about conventions, structure, or workflow. |
+
+**Rules:**
+- Do not duplicate ARCHITECTURE.md content here. Link to it.
+- Do not introduce features that belong to a future phase unless the active plan in `docs/plans/` explicitly requires them.
+- If a plan file disagrees with ARCHITECTURE.md, fix the disagreement deliberately — do not let drift accumulate.
 
 ## Quick Reference
 
@@ -19,163 +34,77 @@ cd backend && ./gradlew test
 cd frontend && npm test
 ```
 
-## Architecture
-
-**Read `docs/ARCHITECTURE.md` for complete technical details** — it contains:
-- Full system architecture with diagrams
-- Database schema (SQLite)
-- All API endpoints with request/response examples
-- Document parsing strategy (AOS-specific)
-- RAG pipeline details
-- Queue system (Artemis)
-- Docker configuration
-- Implementation plan
-
-## Tech Stack
-
-| Layer | Technology |
-|-------|------------|
-| Backend | Kotlin 1.9 + Ktor 2.x |
-| Frontend | React 19 + Vite 8 + TypeScript |
-| UI | shadcn/ui + Tailwind CSS |
-| Database | SQLite (embedded) |
-| LLM | Ollama qwen2.5:7b-instruct-q4_K_M |
-| Embeddings | Ollama bge-m3 |
-| Queue | Apache Artemis (JMS) |
-| Doc Parsing | Apache POI (Word), PDFBox (PDF) |
-
-## Project Structure
-
-```
-aos-chatbot/
-├── backend/                    # Kotlin + Ktor
-│   ├── src/main/kotlin/com/aos/chatbot/
-│   │   ├── Application.kt      # Entry point
-│   │   ├── config/             # AppConfig, DatabaseConfig
-│   │   ├── routes/             # ChatRoutes, AdminRoutes, AuthRoutes
-│   │   ├── services/           # ChatService, SearchService, LlmService
-│   │   ├── parsers/            # WordParser, PdfParser, AosParser
-│   │   ├── models/             # Document, Chunk, User
-│   │   └── db/                 # Database, repositories
-│   └── build.gradle.kts
-│
-├── frontend/                   # React + Vite
-│   ├── src/
-│   │   ├── components/
-│   │   │   ├── chat/           # ChatContainer, MessageList, ChatInput
-│   │   │   ├── admin/          # DocumentList, SystemPromptEditor
-│   │   │   └── ui/             # shadcn components
-│   │   ├── hooks/              # useChat, useAuth, useDocuments
-│   │   └── api/                # API client
-│   └── package.json
-│
-├── docs/
-│   └── ARCHITECTURE.md         # Full technical specification
-│
-├── docker-compose.yml
-└── CLAUDE.md                   # This file
-```
-
-## Application Modes
-
-The app supports three modes via `MODE` environment variable:
-
-| Mode | Use Case | Features |
-|------|----------|----------|
-| `MODE=full` | Development/Testing | Chat + Admin + Parsing |
-| `MODE=admin` | Preparation server | Admin + Parsing (no chat) |
-| `MODE=client` | Production client | Chat only (read-only DB) |
-
-## Key Conventions
+## Coding Conventions
 
 ### Kotlin Backend
 - Use coroutines for all async operations
-- Named exports, no wildcards
-- Services are injected via constructor (manual DI)
+- Named exports, no wildcard imports
+- Manual constructor dependency injection (no DI framework)
 - All API routes under `/api/`
-- SSE for streaming responses
-- JWT for authentication
+- SSE for streaming responses (chat, future phases)
+- Repositories are operation-scoped — they take a `Connection` in the constructor and must not outlive it
+- Errors that cross the API boundary use stable string discriminators in the response body, not enum-typed unions
 
 ### React Frontend
 - Functional components with TypeScript
 - TanStack Query for server state
-- Zustand for auth state only
-- shadcn/ui components (don't reinvent)
+- Zustand only for client-side state that genuinely needs sharing across components (e.g., auth state, when auth lands)
+- shadcn/ui components — do not reinvent
 - Named exports from all files
 
 ### Database
-- SQLite with embeddings stored as BLOB
-- Migrations in `backend/src/main/resources/db/migration/`
-- Foreign keys with CASCADE delete
+- SQLite, accessed via plain JDBC + `PreparedStatement` (no ORM)
+- Migrations in `backend/src/main/resources/db/migration/` as `Vnnn__name.sql` files; **migrations are immutable once committed**
+- Foreign keys enforced via PRAGMA, with `ON DELETE CASCADE` where appropriate
+- Embeddings stored as Float32 BLOBs (little-endian)
 
 ### Testing
 - Backend: JUnit 5 + MockK
 - Frontend: Vitest + React Testing Library
-- Test files next to source: `*.test.kt`, `*.test.tsx`
+- Test files mirror source layout under `src/test/kotlin/...` (Kotlin) or live next to source as `*.test.tsx` (frontend)
+- Every functional increment ships with tests; tests must be green before moving to the next task
 
-## AOS-Specific Parsing
+## Repository Workflow
 
-The system handles special AOS document structures:
-
-1. **MA-XX Troubleshooting Codes** — Parse as structured chunks with code, symptom, cause, solution
-2. **Component Tables** — Preserve table structure, don't flatten to text
-3. **Process/Dataflow Diagrams** — Extract images, link to surrounding text chunks
-
-See `docs/ARCHITECTURE.md` Section 8 for details.
-
-## Environment Variables
-
-```bash
-# Required
-MODE=full|admin|client
-JWT_SECRET=min-32-characters
-ADMIN_PASSWORD=initial-admin-password
-
-# Ollama
-OLLAMA_URL=http://localhost:11434
-OLLAMA_LLM_MODEL=qwen2.5:7b-instruct-q4_K_M
-OLLAMA_EMBED_MODEL=bge-m3
-
-# Artemis (existing infrastructure)
-ARTEMIS_BROKER_URL=tcp://localhost:61616
-
-# Paths
-DATABASE_PATH=/data/aos.db
-DATA_PATH=/data
-```
+- Each active phase lives on a branch named `phase-N-<slug>`. The matching plan file is `docs/plans/phase-N-<slug>.md`.
+- Tasks are executed top-to-bottom. Each task should produce a compilable, runnable increment with tests.
+- When all tasks in a plan are complete and merged, move the plan file into `docs/plans/completed/` with a date prefix.
+- Do not commit new product features without a corresponding entry in the active plan or in ARCHITECTURE.md.
 
 ## Common Tasks
 
 ### Add a new API endpoint
-1. Create route in `backend/src/.../routes/`
-2. Register in `Application.kt`
-3. Add to `docs/ARCHITECTURE.md` API section
+1. Confirm it is in scope for the current phase plan
+2. Create route under `backend/src/main/kotlin/com/aos/chatbot/routes/`
+3. Register it in `Application.kt`
+4. Add request/response shapes to `docs/ARCHITECTURE.md` §7
 
 ### Add a new document parser
-1. Implement `DocumentParser` interface
-2. Add to `ParserFactory`
-3. Write tests with sample documents
+1. Implement the `DocumentParser` interface
+2. Register it in `ParserFactory`
+3. Add tests with representative input fixtures
+4. Honor the image linkage contract and pageNumber policy from ARCHITECTURE.md §8.4 / §8.5
 
-### Add UI component
-1. Check if shadcn/ui has it: `npx shadcn-ui@latest add <component>`
-2. If custom, add to `frontend/src/components/`
+### Add a UI component
+1. Check shadcn/ui first: `npx shadcn-ui@latest add <component>`
+2. If custom, add under `frontend/src/components/`
 3. Use Tailwind for styling
 
-## Important Notes
+## Phase Discipline
 
-- **Offline operation** — No external API calls, everything runs locally
-- **Language** — UI is English only, but LLM handles DE+EN queries
-- **Queue** — Artemis broker already exists on target servers, reuse it
-- **No chat history persistence** — Sessions only, no DB storage of conversations
-- **Vector search** — In-memory cosine similarity, not a separate vector DB
+- **Auth is Phase 4 work.** Phase 2 and Phase 3 must not introduce JWT, login routes, `authenticate { ... }` blocks, or auth-related env vars (`JWT_SECRET`, `ADMIN_PASSWORD`). Admin routes during the pre-auth window are unprotected by design — see [ADR 0005](docs/adr/0005-auth-deferred-out-of-phase-2.md). The `MODE=client` deployment is the only acceptable public-facing mode until auth lands.
+- **Embeddings are Phase 3 work.** Phase 2 persists chunks with `embedding = NULL`. The V002 migration relaxes the V001 NOT NULL constraint to make this possible.
+- **Chat is Phase 3 work.** Phase 2 has no `ChatService`, no `LlmService`, no `SearchService`, no SSE chat route.
+- Do not introduce future-phase features speculatively. If a future phase needs something you are noticing right now, document it in ARCHITECTURE.md or an ADR — do not implement it.
 
-## Getting Started
+## Important Operating Notes
 
-1. Read `docs/ARCHITECTURE.md` thoroughly
-2. Set up development environment (see Section 13 in ARCHITECTURE.md)
-3. Start with Phase 1: Project setup and basic Ktor server
-4. Follow the implementation plan in Section 15
+- **Offline operation** — no external API calls; everything runs on the local network
+- **Language** — UI is English only; the LLM handles DE+EN queries
+- **Queue** — Apache Artemis already exists on target servers; reuse it (Phase 3+)
+- **No chat history persistence** — sessions only, no DB storage of conversations
+- **Vector search** — in-memory cosine similarity, not a separate vector DB
 
 ---
 
-*For any architectural questions, refer to `docs/ARCHITECTURE.md`*
+*For architectural questions, see `docs/ARCHITECTURE.md`. For decision rationale, see `docs/adr/`. For what is currently being built, see `docs/plans/`.*

@@ -74,7 +74,7 @@ AOS Documentation Chatbot is an **offline RAG (Retrieval-Augmented Generation) s
 | **LLM** | Ollama | qwen2.5:7b-instruct-q4_K_M | Response generation (~6 GB RAM) |
 | **Embeddings** | Ollama | bge-m3 | Multilingual embeddings (~2 GB RAM) |
 | **Vector Search** | In-memory Kotlin | — | Cosine similarity (<10ms for 1000 chunks) |
-| **Vision (Phase 2)** | Ollama | LLaVA / Qwen-VL | Image understanding (~8 GB RAM) |
+| **Vision (future)** | Ollama | LLaVA / Qwen-VL | Image understanding (~8 GB RAM) — see §16 |
 
 ### 2.3 Document Processing
 
@@ -449,8 +449,8 @@ CREATE TABLE images (
     path TEXT NOT NULL,                 -- '/data/images/{doc_id}/img_001.png'
     page_number INTEGER,
     caption TEXT,
-    description TEXT,                   -- Phase 2: LLaVA description
-    embedding BLOB,                     -- Phase 2: description embedding
+    description TEXT,                   -- Reserved for future vision-LLM description (see §16)
+    embedding BLOB,                     -- Reserved for future image-description embedding (see §16)
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     
     FOREIGN KEY (document_id) REFERENCES documents(id) ON DELETE CASCADE
@@ -631,7 +631,9 @@ Upload, parse, and index a document **synchronously**. The response is returned 
 }
 ```
 
-**Execution model — synchronous in Phase 2.** The endpoint blocks for the full parse/persist pipeline and returns the final outcome in one request/response. There is no `jobId`, no `status: "indexing"` polling, and no separate job status endpoint in the current scope. An asynchronous job-based variant (the original spec in early drafts of this document) is deferred to a later phase — see the Phase 2 plan at `docs/plans/phase-2-document-processing.md` (Task 14, "Execution model") for the rationale and the forward-migration path (new endpoint, not shape mutation).
+**Execution model — synchronous (durable contract).** The endpoint blocks for the full parse/persist pipeline and returns the final outcome in one request/response. There is no `jobId`, no `status: "indexing"` polling, and no separate job status endpoint. If a future phase needs async upload it will introduce a **new endpoint**, not mutate the shape of `POST /api/admin/documents`. See [ADR 0001](adr/0001-synchronous-document-upload.md) for the full rationale.
+
+**Deployment note — pre-auth window.** Until Phase 4 introduces authentication (§11), `POST /api/admin/documents` and the other admin routes are **unprotected**. The only acceptable public-facing deployment mode is `MODE=client`, which exposes chat only and registers no admin routes. `MODE=full` and `MODE=admin` must be restricted to internal networks until auth lands. Application startup emits a `WARN` log line in unprotected modes. See [ADR 0005](adr/0005-auth-deferred-out-of-phase-2.md).
 
 #### DELETE /api/admin/documents/{id}
 Delete document and all associated chunks/images.
@@ -668,7 +670,9 @@ Update system prompt.
 }
 ```
 
-### 7.4 Auth Endpoints
+### 7.4 Auth Endpoints (Planned for Phase 4)
+
+> **Status: Planned for Phase 4 — not implemented in Phase 2 or Phase 3.** The endpoints below describe the future contract. They are not registered by the current backend. See §11 and [ADR 0005](adr/0005-auth-deferred-out-of-phase-2.md).
 
 #### POST /api/auth/login
 Authenticate user.
@@ -827,7 +831,7 @@ Tables are preserved as structured text with clear column/row relationships.
 
 - Images extracted and saved to `/data/images/{doc_id}/`
 - Reference stored in chunk's `image_refs` field
-- (Phase 2) LLaVA generates textual description
+- *Future enhancement (see §16)*: vision LLM generates a textual description that gets embedded for image-aware retrieval
 
 ### 8.3 Chunking Parameters
 
@@ -837,6 +841,52 @@ Tables are preserved as structured text with clear column/row relationships.
 | Overlap | 50 tokens | Context continuity |
 | Min chunk size | 100 tokens | Avoid tiny fragments |
 | Preserve boundaries | Yes | Don't split mid-sentence |
+
+### 8.4 Image Linkage Contract
+
+The pipeline must not lose the association between extracted images and the text they relate to. This is a durable contract enforced by every parsing component (parsers, chunking service, AOS post-processors, image extractor, document service).
+
+**Stable identifier.** `ImageData.filename` is the stable handle for an image throughout the entire pipeline:
+
+- Parsers generate it. It lives unchanged on `TextBlock.imageRefs` and the resulting `Chunk.imageRefs` as a Kotlin `List<String>` throughout the domain layer.
+- `ImageExtractor` writes the file to disk using this exact filename — no renaming.
+- The `images` table row stores this exact filename.
+- JSON serialization happens **only** at the `ChunkRepository` boundary when binding to `chunks.image_refs`. No other layer touches the JSON form.
+
+**Per-document namespace.** Filenames are scoped per document:
+
+- Disk layout: `{imagesPath}/{documentId}/{filename}`.
+- The `images` table uses `(document_id, filename)` as the logical lookup tuple.
+- Parsers reuse simple per-document schemes without collision between documents.
+
+**Filename conventions parsers MUST follow:**
+
+- **Word (.docx)** — `img_{NNN}.{ext}` where `NNN` is a 3-digit sequence starting at `001`, in document traversal order, and `ext` matches the blob's MIME type (`png`, `jpg`, `gif`, ...).
+- **PDF** — `img_p{PAGE}_{NNN}.{ext}` with the page number embedded in the name. Sequence `NNN` resets per page.
+
+**Referential integrity invariant** (validated before persistence):
+
+- Every filename appearing in any `TextBlock.imageRefs` MUST appear as the `filename` of exactly one `ImageData` in `ParsedContent.images`.
+- Every `ImageData` MUST appear in exactly one `TextBlock.imageRefs` (no orphans, no duplicates across blocks). Exception: PDF parser may emit a synthetic empty `TextBlock` solely to carry image refs for an image-only page.
+- Violations cause pipeline failure with the standard rollback/compensation path — they do not silently drop images.
+
+**Preservation through the pipeline:**
+
+- AOS post-processors MUST NOT drop or rewrite `imageRefs` when converting a block's `type` (e.g., text → troubleshoot). The field passes through unchanged.
+- `ChunkingService` MUST replicate the full `imageRefs` list onto every chunk produced by splitting a parent `TextBlock`. Duplication is cheap and ensures retrieval via any matching chunk surfaces the related images.
+- `ChunkRepository` serializes `List<String>` to a JSON array string when binding to `chunks.image_refs`. **Empty list serializes to SQL `NULL`**, not `"[]"`, to keep the column semantically consistent with "no image references". On read, `NULL` deserializes back to `emptyList()` — no nullable `List<String>?` is surfaced to callers.
+
+### 8.5 pageNumber Population Policy
+
+`pageNumber: Int?` on `TextBlock`, `Chunk`, `ExtractedImage`, and `ImageData` is populated only when the source format provides it reliably.
+
+| Component | pageNumber behavior |
+|-----------|---------------------|
+| **PdfParser** | Sets `pageNumber = N` on every TextBlock and ImageData emitted from page N (1-indexed from PDFBox). |
+| **WordParser** | Sets `pageNumber = null` on every emitted block. Apache POI does not expose reliable rendered page numbers for `.docx`, and no heuristic substitute is permitted (paragraph counts, explicit page breaks, section properties, etc. all give wrong answers under common document layouts). |
+| **ChunkingService, AOS post-processors, ImageExtractor, DocumentService** | Pass `pageNumber` through unchanged. `null` stays `null`, `N` stays `N`. No transformation. |
+
+Downstream consumers (RAG retrieval, future UI citation) MUST handle `null` as "page unknown" and MUST NOT fabricate a default. Changing the WordParser policy to fabricate page numbers requires explicit design review — it is not a quiet refactor.
 
 ---
 
@@ -965,7 +1015,10 @@ sealed class QueueEvent {
 
 ## 11. Authentication
 
-### 11.1 JWT Configuration
+> **Status: deferred to Phase 4 — not implemented in Phase 2 or Phase 3.**
+> During the pre-auth window, admin routes are unprotected. The only acceptable public-facing deployment is `MODE=client` (chat only, no admin routes registered). `MODE=full` and `MODE=admin` MUST be restricted to internal networks until auth lands. See [ADR 0005](adr/0005-auth-deferred-out-of-phase-2.md).
+
+### 11.1 JWT Configuration (Planned for Phase 4)
 
 | Parameter | Value |
 |-----------|-------|
@@ -973,7 +1026,7 @@ sealed class QueueEvent {
 | Expiration | 24 hours |
 | Issuer | aos-chatbot |
 
-### 11.2 Protected Routes
+### 11.2 Protected Routes (Planned for Phase 4)
 
 | Route Pattern | Required Role |
 |---------------|---------------|
@@ -983,7 +1036,7 @@ sealed class QueueEvent {
 | `/api/health/*` | (public) |
 | `/api/auth/*` | (public) |
 
-### 11.3 Default Admin User
+### 11.3 Default Admin User (Planned for Phase 4)
 
 Created on first startup:
 - Username: `admin`
@@ -1016,12 +1069,15 @@ ARTEMIS_BROKER_URL=tcp://artemis:61616
 ARTEMIS_USER=
 ARTEMIS_PASSWORD=
 
-# Auth
+# Auth (Phase 4+) — not consumed by the backend until auth lands. See ADR 0005.
 JWT_SECRET=your-secret-key-min-32-chars
 ADMIN_PASSWORD=initial-admin-password
 
 # Paths
 DATA_PATH=/data
+# DOCUMENTS_PATH and IMAGES_PATH default to ${DATA_PATH}/documents and
+# ${DATA_PATH}/images respectively. Override only when ops needs to mount
+# them on separate volumes from DATA_PATH.
 DOCUMENTS_PATH=/data/documents
 IMAGES_PATH=/data/images
 
@@ -1049,6 +1105,16 @@ app {
     database {
         path = ${DATABASE_PATH}
     }
+    data {
+        path = "./data"
+        path = ${?DATA_PATH}
+    }
+    paths {
+        documents = ${app.data.path}/documents
+        documents = ${?DOCUMENTS_PATH}
+        images = ${app.data.path}/images
+        images = ${?IMAGES_PATH}
+    }
     ollama {
         url = ${OLLAMA_URL}
         llmModel = ${OLLAMA_LLM_MODEL}
@@ -1056,6 +1122,19 @@ app {
     }
 }
 ```
+
+### 12.3 Path Defaults and Override Behavior
+
+Path-related env vars derive from a single base, `DATA_PATH`. Setting only `DATA_PATH` is sufficient for normal deployments — the other paths auto-derive via HOCON substitution.
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `DATA_PATH` | `./data` | Base data directory |
+| `DATABASE_PATH` | `./data/aos.db` | SQLite database file |
+| `DOCUMENTS_PATH` | `${DATA_PATH}/documents` | Uploaded source documents |
+| `IMAGES_PATH` | `${DATA_PATH}/images` | Extracted images |
+
+`DOCUMENTS_PATH` and `IMAGES_PATH` may be overridden independently when ops needs to mount them on separate volumes. They are read by `AppConfig` from `app.paths.documents` and `app.paths.images`; no Kotlin code composes these paths ad-hoc.
 
 ---
 
@@ -1076,8 +1155,9 @@ services:
       - DATABASE_PATH=/data/aos.db
       - OLLAMA_URL=http://ollama:11434
       - ARTEMIS_BROKER_URL=tcp://artemis:61616
-      - JWT_SECRET=${JWT_SECRET}
-      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
+      # Auth env vars (Phase 4+) — uncomment once auth lands. See ADR 0005.
+      # - JWT_SECRET=${JWT_SECRET}
+      # - ADMIN_PASSWORD=${ADMIN_PASSWORD}
     volumes:
       - aos-data:/data
     ports:
@@ -1234,6 +1314,8 @@ fun Application.warmupOllama() {
 
 ## 15. Implementation Plan
 
+> This section is the **high-level roadmap only**. Detailed task-by-task execution lives in `docs/plans/`. Architectural decisions with longer rationale live in `docs/adr/`.
+
 ### Phase 1: Foundation (Week 1-2)
 
 - [x] Project setup (Gradle, Vite, Docker)
@@ -1289,7 +1371,9 @@ fun Application.warmupOllama() {
 
 ## 16. Future Enhancements
 
-### Phase 2 Features
+> Items in this section are **not** scoped to any current implementation phase. They are forward-looking enhancements to be planned separately. Do not confuse them with the active `Phase N` work tracked in `docs/plans/`.
+
+### Future Feature Backlog
 
 | Feature | Description | Priority |
 |---------|-------------|----------|
