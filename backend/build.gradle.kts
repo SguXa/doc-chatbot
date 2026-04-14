@@ -30,6 +30,10 @@ dependencies {
     // Serialization
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:$kotlinxSerializationVersion")
 
+    // Document processing
+    implementation("org.apache.poi:poi-ooxml:5.2.5")
+    implementation("org.apache.pdfbox:pdfbox:3.0.1")
+
     // SQLite
     implementation("org.xerial:sqlite-jdbc:3.45.3.0")
 

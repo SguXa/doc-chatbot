@@ -42,9 +42,9 @@ Implement the document parsing pipeline that turns uploaded Word and PDF documen
 **Files:**
 - Modify: `backend/build.gradle.kts`
 
-- [ ] Add `org.apache.poi:poi-ooxml:5.2.5` to dependencies
-- [ ] Add `org.apache.pdfbox:pdfbox:3.0.1` to dependencies
-- [ ] Verify: `cd backend && ./gradlew build` succeeds
+- [x] Add `org.apache.poi:poi-ooxml:5.2.5` to dependencies
+- [x] Add `org.apache.pdfbox:pdfbox:3.0.1` to dependencies
+- [x] Verify: `cd backend && ./gradlew build` succeeds
 
 ### Task 2: V002 migration — make chunks.embedding nullable
 
