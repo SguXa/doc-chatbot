@@ -52,15 +52,15 @@ Implement the document parsing pipeline that turns uploaded Word and PDF documen
 - Create: `backend/src/main/resources/db/migration/V002__chunks_embedding_nullable.sql`
 - Modify: `backend/src/test/kotlin/com/aos/chatbot/db/MigrationsTest.kt`
 
-- [ ] Create V002 using SQLite table-rebuild pattern: `CREATE TABLE chunks_new` mirroring V001 columns/PK/FK except `embedding BLOB` is nullable; `INSERT INTO chunks_new SELECT * FROM chunks`; `DROP TABLE chunks`; `ALTER TABLE chunks_new RENAME TO chunks`
-- [ ] Recreate all three indexes from V001 (`idx_chunks_document`, `idx_chunks_content_type`, `idx_chunks_section`)
-- [ ] Preserve `FOREIGN KEY (document_id) REFERENCES documents(id) ON DELETE CASCADE`
-- [ ] Do NOT modify V001 — migrations are immutable
-- [ ] Add MigrationsTest case: insert chunk with `embedding = NULL` succeeds, insert with non-null blob also succeeds
-- [ ] Add MigrationsTest case: FK violation still raised when inserting chunk with non-existent `document_id`
-- [ ] Add MigrationsTest case: ON DELETE CASCADE removes chunks (including those with NULL embedding) when parent document deleted
-- [ ] Add MigrationsTest case: `schema_version` records version 2
-- [ ] Verify: `cd backend && ./gradlew test`
+- [x] Create V002 using SQLite table-rebuild pattern: `CREATE TABLE chunks_new` mirroring V001 columns/PK/FK except `embedding BLOB` is nullable; `INSERT INTO chunks_new SELECT * FROM chunks`; `DROP TABLE chunks`; `ALTER TABLE chunks_new RENAME TO chunks`
+- [x] Recreate all three indexes from V001 (`idx_chunks_document`, `idx_chunks_content_type`, `idx_chunks_section`)
+- [x] Preserve `FOREIGN KEY (document_id) REFERENCES documents(id) ON DELETE CASCADE`
+- [x] Do NOT modify V001 — migrations are immutable
+- [x] Add MigrationsTest case: insert chunk with `embedding = NULL` succeeds, insert with non-null blob also succeeds
+- [x] Add MigrationsTest case: FK violation still raised when inserting chunk with non-existent `document_id`
+- [x] Add MigrationsTest case: ON DELETE CASCADE removes chunks (including those with NULL embedding) when parent document deleted
+- [x] Add MigrationsTest case: `schema_version` records version 2
+- [x] Verify: `cd backend && ./gradlew test`
 
 ### Task 3: V003 migration — UNIQUE index on documents.file_hash
 

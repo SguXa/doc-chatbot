@@ -208,4 +208,129 @@ class MigrationsTest {
             assertEquals("initial_schema", rs.getString("name"))
         }
     }
+
+    // --- V002 tests: chunks.embedding nullable ---
+
+    @Test
+    fun `V002 - chunk with null embedding succeeds`() {
+        val conn = inMemoryConnection()
+        conn.use {
+            Migrations(it).apply()
+
+            it.createStatement().executeUpdate(
+                "INSERT INTO documents (filename, file_type) VALUES ('test.docx', 'docx')"
+            )
+
+            // Insert chunk with NULL embedding
+            it.createStatement().executeUpdate(
+                """
+                INSERT INTO chunks (document_id, content, content_type, embedding)
+                VALUES (1, 'test content', 'text', NULL)
+                """.trimIndent()
+            )
+
+            val rs = it.createStatement().executeQuery("SELECT embedding FROM chunks WHERE id = 1")
+            assertTrue(rs.next(), "Chunk should exist")
+            rs.getBytes("embedding")
+            assertTrue(rs.wasNull(), "Embedding should be NULL")
+        }
+    }
+
+    @Test
+    fun `V002 - chunk with non-null embedding succeeds`() {
+        val conn = inMemoryConnection()
+        conn.use {
+            Migrations(it).apply()
+
+            it.createStatement().executeUpdate(
+                "INSERT INTO documents (filename, file_type) VALUES ('test.docx', 'docx')"
+            )
+
+            it.createStatement().executeUpdate(
+                """
+                INSERT INTO chunks (document_id, content, content_type, embedding)
+                VALUES (1, 'test content', 'text', X'DEADBEEF')
+                """.trimIndent()
+            )
+
+            val rs = it.createStatement().executeQuery("SELECT embedding FROM chunks WHERE id = 1")
+            assertTrue(rs.next(), "Chunk should exist")
+            val blob = rs.getBytes("embedding")
+            assertTrue(blob != null && blob.isNotEmpty(), "Embedding should be non-null")
+        }
+    }
+
+    @Test
+    fun `V002 - FK violation raised for chunk with non-existent document_id`() {
+        val conn = inMemoryConnection()
+        conn.use {
+            Migrations(it).apply()
+
+            val exception = assertFailsWith<SQLException> {
+                it.createStatement().executeUpdate(
+                    """
+                    INSERT INTO chunks (document_id, content, content_type, embedding)
+                    VALUES (999, 'test content', 'text', NULL)
+                    """.trimIndent()
+                )
+            }
+            assertTrue(
+                exception.message?.contains("FOREIGN KEY") == true,
+                "Expected foreign key constraint violation, got: ${exception.message}"
+            )
+        }
+    }
+
+    @Test
+    fun `V002 - cascade delete removes chunks with null embedding`() {
+        val conn = inMemoryConnection()
+        conn.use {
+            Migrations(it).apply()
+
+            it.createStatement().executeUpdate(
+                "INSERT INTO documents (filename, file_type) VALUES ('test.docx', 'docx')"
+            )
+
+            // Insert chunk with NULL embedding
+            it.createStatement().executeUpdate(
+                """
+                INSERT INTO chunks (document_id, content, content_type, embedding)
+                VALUES (1, 'null embedding chunk', 'text', NULL)
+                """.trimIndent()
+            )
+
+            // Insert chunk with non-null embedding
+            it.createStatement().executeUpdate(
+                """
+                INSERT INTO chunks (document_id, content, content_type, embedding)
+                VALUES (1, 'blob embedding chunk', 'text', X'DEADBEEF')
+                """.trimIndent()
+            )
+
+            val verifyRs = it.createStatement().executeQuery("SELECT COUNT(*) FROM chunks WHERE document_id = 1")
+            verifyRs.next()
+            assertEquals(2, verifyRs.getInt(1), "Both chunks should exist before delete")
+
+            it.createStatement().executeUpdate("DELETE FROM documents WHERE id = 1")
+
+            val rs = it.createStatement().executeQuery("SELECT COUNT(*) FROM chunks WHERE document_id = 1")
+            rs.next()
+            assertEquals(0, rs.getInt(1), "All chunks should be cascade deleted")
+        }
+    }
+
+    @Test
+    fun `V002 - schema_version records version 2`() {
+        val conn = inMemoryConnection()
+        conn.use {
+            Migrations(it).apply()
+
+            val rs = it.createStatement().executeQuery(
+                "SELECT version, name FROM schema_version WHERE version = 2"
+            )
+            assertTrue(rs.next(), "Expected version 2 to be recorded")
+            assertEquals(2, rs.getInt("version"))
+            assertEquals("chunks_embedding_nullable", rs.getString("name"))
+        }
+    }
 }
