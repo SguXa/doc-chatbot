@@ -33,6 +33,7 @@ fun Application.module() {
         exception<Throwable> { call, cause ->
             if (cause is kotlinx.coroutines.CancellationException) throw cause
             if (cause is Error) throw cause
+            this@module.log.error("Unhandled exception", cause)
             call.respond(HttpStatusCode.InternalServerError, mapOf("error" to "Internal server error"))
         }
     }
