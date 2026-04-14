@@ -258,21 +258,21 @@ Implements the image linkage contract (ARCHITECTURE.md §8.4) and pageNumber pol
 
 Operation-scoped (NOT singleton). Saves images to disk and writes DB rows. The atomic temp+move pattern is the contract — see ARCHITECTURE.md §8.4 for filename stability and ADR 0004 for the cleanup boundary.
 
-- [ ] Constructor takes `imagesBasePath: String`, `imageRepository: ImageRepository`
-- [ ] Create per-document directory `{imagesBasePath}/{documentId}/` if missing
-- [ ] Per image: write to `{final}.tmp.{UUID}` then `Files.move(temp, final, StandardCopyOption.ATOMIC_MOVE)`
-- [ ] Use `ImageData.filename` verbatim for final path and DB row (no transforms)
-- [ ] Never use `REPLACE_EXISTING`; treat `FileAlreadyExistsException` as contract violation (log ERROR, delete temp, rethrow)
-- [ ] On `AtomicMoveNotSupportedException`, delete temp, throw `IllegalStateException` with filesystem-config message
-- [ ] On IOException during temp write, delete partial temp via `runCatching { Files.deleteIfExists }`, log ERROR, rethrow
-- [ ] Per-image order: file write (temp → atomic move) FIRST, DB row insert SECOND
-- [ ] IO errors must throw, NOT swallow, so DocumentService rollback can clean up
-- [ ] Test happy path: 3 images → 3 final files, zero `*.tmp.*` files remain, 3 DB rows
-- [ ] Test temp-write failure on 2nd of 3 images: first persisted, second has neither final nor temp, third not attempted
-- [ ] Test `FileAlreadyExistsException` at atomic move: pre-existing file unchanged, no DB row, exception propagates
-- [ ] Assert verbatim filenames on disk and in DB row (no `tmp` suffix leaks)
-- [ ] Assert temp path matches regex `.*\.tmp\.[0-9a-f-]{36}$`
-- [ ] Verify: `cd backend && ./gradlew test`
+- [x] Constructor takes `imagesBasePath: String`, `imageRepository: ImageRepository`
+- [x] Create per-document directory `{imagesBasePath}/{documentId}/` if missing
+- [x] Per image: write to `{final}.tmp.{UUID}` then `Files.move(temp, final, StandardCopyOption.ATOMIC_MOVE)`
+- [x] Use `ImageData.filename` verbatim for final path and DB row (no transforms)
+- [x] Never use `REPLACE_EXISTING`; treat `FileAlreadyExistsException` as contract violation (log ERROR, delete temp, rethrow)
+- [x] On `AtomicMoveNotSupportedException`, delete temp, throw `IllegalStateException` with filesystem-config message
+- [x] On IOException during temp write, delete partial temp via `runCatching { Files.deleteIfExists }`, log ERROR, rethrow
+- [x] Per-image order: file write (temp → atomic move) FIRST, DB row insert SECOND
+- [x] IO errors must throw, NOT swallow, so DocumentService rollback can clean up
+- [x] Test happy path: 3 images → 3 final files, zero `*.tmp.*` files remain, 3 DB rows
+- [x] Test temp-write failure on 2nd of 3 images: first persisted, second has neither final nor temp, third not attempted
+- [x] Test `FileAlreadyExistsException` at atomic move: pre-existing file unchanged, no DB row, exception propagates
+- [x] Assert verbatim filenames on disk and in DB row (no `tmp` suffix leaks)
+- [x] Assert temp path matches regex `.*\.tmp\.[0-9a-f-]{36}$`
+- [x] Verify: `cd backend && ./gradlew test`
 
 ### Task 13: Create DocumentService to orchestrate the parsing pipeline
 
