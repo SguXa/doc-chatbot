@@ -68,7 +68,8 @@ class MigrationsTest {
                 "idx_chunks_document",
                 "idx_chunks_content_type",
                 "idx_chunks_section",
-                "idx_images_document"
+                "idx_images_document",
+                "idx_documents_file_hash_unique"
             )
             val actualIndexes = mutableSetOf<String>()
 
@@ -331,6 +332,77 @@ class MigrationsTest {
             assertTrue(rs.next(), "Expected version 2 to be recorded")
             assertEquals(2, rs.getInt("version"))
             assertEquals("chunks_embedding_nullable", rs.getString("name"))
+        }
+    }
+
+    // --- V003 tests: UNIQUE index on documents.file_hash ---
+
+    @Test
+    fun `V003 - idx_documents_file_hash_unique exists in sqlite_master`() {
+        val conn = inMemoryConnection()
+        conn.use {
+            Migrations(it).apply()
+
+            val rs = it.createStatement().executeQuery(
+                "SELECT name FROM sqlite_master WHERE type='index' AND name='idx_documents_file_hash_unique'"
+            )
+            assertTrue(rs.next(), "Expected idx_documents_file_hash_unique index to exist")
+        }
+    }
+
+    @Test
+    fun `V003 - duplicate file_hash raises SQLException containing UNIQUE`() {
+        val conn = inMemoryConnection()
+        conn.use {
+            Migrations(it).apply()
+
+            it.createStatement().executeUpdate(
+                "INSERT INTO documents (filename, file_type, file_hash) VALUES ('a.docx', 'docx', 'abc123')"
+            )
+
+            val exception = assertFailsWith<SQLException> {
+                it.createStatement().executeUpdate(
+                    "INSERT INTO documents (filename, file_type, file_hash) VALUES ('b.docx', 'docx', 'abc123')"
+                )
+            }
+            assertTrue(
+                exception.message?.contains("UNIQUE") == true,
+                "Expected UNIQUE constraint violation, got: ${exception.message}"
+            )
+        }
+    }
+
+    @Test
+    fun `V003 - rows with different file_hash values coexist`() {
+        val conn = inMemoryConnection()
+        conn.use {
+            Migrations(it).apply()
+
+            it.createStatement().executeUpdate(
+                "INSERT INTO documents (filename, file_type, file_hash) VALUES ('a.docx', 'docx', 'hash_aaa')"
+            )
+            it.createStatement().executeUpdate(
+                "INSERT INTO documents (filename, file_type, file_hash) VALUES ('b.docx', 'docx', 'hash_bbb')"
+            )
+
+            val rs = it.createStatement().executeQuery("SELECT COUNT(*) FROM documents")
+            rs.next()
+            assertEquals(2, rs.getInt(1), "Both rows with distinct hashes should coexist")
+        }
+    }
+
+    @Test
+    fun `V003 - schema_version records version 3`() {
+        val conn = inMemoryConnection()
+        conn.use {
+            Migrations(it).apply()
+
+            val rs = it.createStatement().executeQuery(
+                "SELECT version, name FROM schema_version WHERE version = 3"
+            )
+            assertTrue(rs.next(), "Expected version 3 to be recorded")
+            assertEquals(3, rs.getInt("version"))
+            assertEquals("documents_file_hash_unique", rs.getString("name"))
         }
     }
 }

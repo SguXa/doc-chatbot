@@ -70,13 +70,13 @@ Implement the document parsing pipeline that turns uploaded Word and PDF documen
 
 See [ADR 0002](../adr/0002-file-hash-unique-without-not-null.md) for why we add UNIQUE without NOT NULL.
 
-- [ ] Create V003 with `CREATE UNIQUE INDEX IF NOT EXISTS idx_documents_file_hash_unique ON documents(file_hash)`
-- [ ] Do NOT modify V001 or V002
-- [ ] Add MigrationsTest case: index `idx_documents_file_hash_unique` exists in `sqlite_master` after V003
-- [ ] Add MigrationsTest case: second insert with duplicate `file_hash` raises `SQLException` containing `UNIQUE`
-- [ ] Add MigrationsTest case: rows with different `file_hash` values coexist
-- [ ] Add MigrationsTest case: `schema_version` records version 3
-- [ ] Verify: `cd backend && ./gradlew test`
+- [x] Create V003 with `CREATE UNIQUE INDEX IF NOT EXISTS idx_documents_file_hash_unique ON documents(file_hash)`
+- [x] Do NOT modify V001 or V002
+- [x] Add MigrationsTest case: index `idx_documents_file_hash_unique` exists in `sqlite_master` after V003
+- [x] Add MigrationsTest case: second insert with duplicate `file_hash` raises `SQLException` containing `UNIQUE`
+- [x] Add MigrationsTest case: rows with different `file_hash` values coexist
+- [x] Add MigrationsTest case: `schema_version` records version 3
+- [x] Verify: `cd backend && ./gradlew test`
 
 ### Task 4: Add documentsPath and imagesPath to AppConfig
 
