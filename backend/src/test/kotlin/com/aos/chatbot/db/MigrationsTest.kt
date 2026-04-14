@@ -163,6 +163,40 @@ class MigrationsTest {
     }
 
     @Test
+    fun `cascade delete removes images when document is deleted`() {
+        val conn = inMemoryConnection()
+        conn.use {
+            Migrations(it).apply()
+
+            // Insert a document
+            it.createStatement().executeUpdate(
+                "INSERT INTO documents (filename, file_type) VALUES ('test.docx', 'docx')"
+            )
+
+            // Insert an image referencing that document
+            it.createStatement().executeUpdate(
+                """
+                INSERT INTO images (document_id, filename, path)
+                VALUES (1, 'img_001.png', '/data/images/1/img_001.png')
+                """.trimIndent()
+            )
+
+            // Verify image was inserted
+            val verifyRs = it.createStatement().executeQuery("SELECT COUNT(*) FROM images WHERE document_id = 1")
+            verifyRs.next()
+            assertEquals(1, verifyRs.getInt(1), "Image should exist before delete")
+
+            // Delete the document
+            it.createStatement().executeUpdate("DELETE FROM documents WHERE id = 1")
+
+            // Image should be gone
+            val rs = it.createStatement().executeQuery("SELECT COUNT(*) FROM images WHERE document_id = 1")
+            rs.next()
+            assertEquals(0, rs.getInt(1), "Images should be cascade deleted")
+        }
+    }
+
+    @Test
     fun `schema version is recorded after migration`() {
         val conn = inMemoryConnection()
         conn.use {

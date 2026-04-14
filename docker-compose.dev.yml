@@ -6,8 +6,6 @@ services:
       - MODE=full
       - PORT=8080
       - DATABASE_PATH=/data/aos.db
-      - JWT_SECRET=dev-secret-key-minimum-32-characters-long
-      - ADMIN_PASSWORD=admin
     volumes:
       - aos-data:/data
       - ./backend/src:/app/src

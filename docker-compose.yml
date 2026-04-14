@@ -6,8 +6,6 @@ services:
       - MODE=full
       - PORT=8080
       - DATABASE_PATH=/data/aos.db
-      - JWT_SECRET=${JWT_SECRET}
-      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
     volumes:
       - aos-data:/data
     ports:
