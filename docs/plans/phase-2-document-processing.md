@@ -213,20 +213,20 @@ Implements the image linkage contract (ARCHITECTURE.md §8.4) and pageNumber pol
 - Create: `backend/src/main/kotlin/com/aos/chatbot/parsers/ChunkingService.kt`
 - Create: `backend/src/test/kotlin/com/aos/chatbot/parsers/ChunkingServiceTest.kt`
 
-- [ ] Split TextBlocks into chunks with `maxChunkTokens=500`, `overlapTokens=50`, `minChunkTokens=100`
-- [ ] Preserve sentence boundaries on `.`, `!`, `?` followed by whitespace; never split mid-sentence
-- [ ] Do NOT split special types `table` and `troubleshoot` even if they exceed max size
-- [ ] Apply overlap between consecutive chunks
-- [ ] Merge trailing chunks below `minChunkTokens` into the previous chunk
-- [ ] Replicate parent's full `imageRefs` onto every output chunk (per ARCHITECTURE.md §8.4)
-- [ ] On min-chunk merge, union imageRefs from both chunks (preserve order, dedupe)
-- [ ] Synthetic empty blocks with non-empty imageRefs MUST survive (do not drop)
-- [ ] Preserve `pageNumber` unchanged from parent to every output chunk
-- [ ] Tests: sentence-boundary splitting, short-text passthrough, overlap correctness, special-type non-splitting, min-chunk merging
-- [ ] Tests for imageRefs: long block splits into 3 chunks all carrying same refs; short block passthrough; merge with overlapping refs; synthetic empty block survives
-- [ ] Test: end-to-end imageRefs union equality (input set == output set)
-- [ ] Test: pageNumber preserved on every output chunk for both `pageNumber=5` and `pageNumber=null` inputs
-- [ ] Verify: `cd backend && ./gradlew test`
+- [x] Split TextBlocks into chunks with `maxChunkTokens=500`, `overlapTokens=50`, `minChunkTokens=100`
+- [x] Preserve sentence boundaries on `.`, `!`, `?` followed by whitespace; never split mid-sentence
+- [x] Do NOT split special types `table` and `troubleshoot` even if they exceed max size
+- [x] Apply overlap between consecutive chunks
+- [x] Merge trailing chunks below `minChunkTokens` into the previous chunk
+- [x] Replicate parent's full `imageRefs` onto every output chunk (per ARCHITECTURE.md §8.4)
+- [x] On min-chunk merge, union imageRefs from both chunks (preserve order, dedupe)
+- [x] Synthetic empty blocks with non-empty imageRefs MUST survive (do not drop)
+- [x] Preserve `pageNumber` unchanged from parent to every output chunk
+- [x] Tests: sentence-boundary splitting, short-text passthrough, overlap correctness, special-type non-splitting, min-chunk merging
+- [x] Tests for imageRefs: long block splits into 3 chunks all carrying same refs; short block passthrough; merge with overlapping refs; synthetic empty block survives
+- [x] Test: end-to-end imageRefs union equality (input set == output set)
+- [x] Test: pageNumber preserved on every output chunk for both `pageNumber=5` and `pageNumber=null` inputs
+- [x] Verify: `cd backend && ./gradlew test`
 
 ### Task 11: Implement AOS-specific parsers
 
