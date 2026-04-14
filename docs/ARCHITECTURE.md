@@ -553,7 +553,7 @@ Get sources from the last response.
 ### 7.2 Admin Endpoints
 
 #### GET /api/admin/documents
-List all documents.
+List all documents. Ordering: **newest first** (`created_at DESC, id DESC`) — most recently uploaded documents appear first. The `id DESC` component is the deterministic tie-breaker for uploads within the same second. This ordering is enforced at the repository layer (`DocumentRepository.findAll()`); the route handler does not re-sort.
 
 **Response:**
 ```json
@@ -574,19 +574,64 @@ List all documents.
 ```
 
 #### POST /api/admin/documents
-Upload and index a document.
+Upload, parse, and index a document **synchronously**. The response is returned after parsing, chunking, image extraction, and all DB writes complete.
 
 **Request:** `multipart/form-data` with file
 
-**Response:**
+**Responses:**
+
+`201 Created` — document was successfully parsed and indexed:
 ```json
 {
   "id": 6,
   "filename": "NewDoc.docx",
-  "status": "indexing",
-  "jobId": "abc123"
+  "fileType": "docx",
+  "fileSize": 182394,
+  "fileHash": "a1b2c3...",
+  "chunkCount": 42,
+  "imageCount": 3,
+  "indexedAt": "2026-04-14T12:34:56Z",
+  "createdAt": "2026-04-14T12:34:56Z"
 }
 ```
+
+`400 Bad Request` — upload rejected at validation, unparseable content, or empty-after-parse. Body contains a stable `error` discriminator (`invalid_upload`, `unreadable_document`, or `empty_content`) and a `reason` subcode for client branching:
+```json
+{
+  "error": "invalid_upload",
+  "reason": "unsupported_extension",
+  "message": "Unsupported file extension: 'exe'. Supported: docx, pdf"
+}
+```
+```json
+{
+  "error": "unreadable_document",
+  "reason": "corrupted_docx",
+  "message": "The uploaded .docx file could not be parsed: ..."
+}
+```
+```json
+{
+  "error": "empty_content",
+  "reason": "no_extractable_content",
+  "message": "The uploaded document contains no text, tables, or images that can be indexed. It may be a blank document, a scanned PDF without OCR, or a file with only metadata."
+}
+```
+
+`409 Conflict` — a document with identical content (same SHA-256) already exists:
+```json
+{
+  "error": "duplicate_document",
+  "message": "A document with identical content has already been indexed. Delete the existing document first if you want to re-index.",
+  "existing": {
+    "id": 42,
+    "filename": "troubleshooting_v2.docx",
+    "indexed_at": "2026-03-28T14:12:03Z"
+  }
+}
+```
+
+**Execution model — synchronous in Phase 2.** The endpoint blocks for the full parse/persist pipeline and returns the final outcome in one request/response. There is no `jobId`, no `status: "indexing"` polling, and no separate job status endpoint in the current scope. An asynchronous job-based variant (the original spec in early drafts of this document) is deferred to a later phase — see the Phase 2 plan at `docs/plans/phase-2-document-processing.md` (Task 14, "Execution model") for the rationale and the forward-migration path (new endpoint, not shape mutation).
 
 #### DELETE /api/admin/documents/{id}
 Delete document and all associated chunks/images.
