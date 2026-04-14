@@ -237,18 +237,18 @@ Implements the image linkage contract (ARCHITECTURE.md §8.4) and pageNumber pol
 - Create: `backend/src/test/kotlin/com/aos/chatbot/parsers/aos/AosParserTest.kt`
 - Create: `backend/src/test/kotlin/com/aos/chatbot/parsers/aos/TroubleshootParserTest.kt`
 
-- [ ] `AosParser` orchestrates post-processing of `ParsedContent` from WordParser/PdfParser
-- [ ] `TroubleshootParser` detects MA-XX codes (`MA-\d{2,3}` at line/heading start)
-- [ ] Extract structured troubleshoot blocks: code, symptom (after `Symptom:`), cause (after `Cause:` or `Ursache:`), solution (after `Solution:` or `Lösung:`)
-- [ ] Output TextBlock with `type="troubleshoot"`, `sectionId="MA-XX"`; handle German labels
-- [ ] `ComponentParser` enriches table blocks with component metadata, preserves structure
-- [ ] Preserve `imageRefs` through every transformation (no drop, no rewrite, no truncate); allowed transforms = type change, sectionId change, content rewrite, merge (union refs), split (replicate refs)
-- [ ] Pass `ParsedContent.images` through unchanged
-- [ ] Preserve `pageNumber` unchanged; on merge the first input's value wins
-- [ ] Tests: typical AOS document fixtures, troubleshoot detection, component table enrichment
-- [ ] Tests for imageRefs passthrough: type conversion, enrichment, merge (union), passthrough
-- [ ] Test: end-to-end `ParsedContent.images` identity
-- [ ] Verify: `cd backend && ./gradlew test`
+- [x] `AosParser` orchestrates post-processing of `ParsedContent` from WordParser/PdfParser
+- [x] `TroubleshootParser` detects MA-XX codes (`MA-\d{2,3}` at line/heading start)
+- [x] Extract structured troubleshoot blocks: code, symptom (after `Symptom:`), cause (after `Cause:` or `Ursache:`), solution (after `Solution:` or `Lösung:`)
+- [x] Output TextBlock with `type="troubleshoot"`, `sectionId="MA-XX"`; handle German labels
+- [x] `ComponentParser` enriches table blocks with component metadata, preserves structure
+- [x] Preserve `imageRefs` through every transformation (no drop, no rewrite, no truncate); allowed transforms = type change, sectionId change, content rewrite, merge (union refs), split (replicate refs)
+- [x] Pass `ParsedContent.images` through unchanged
+- [x] Preserve `pageNumber` unchanged; on merge the first input's value wins
+- [x] Tests: typical AOS document fixtures, troubleshoot detection, component table enrichment
+- [x] Tests for imageRefs passthrough: type conversion, enrichment, merge (union), passthrough
+- [x] Test: end-to-end `ParsedContent.images` identity
+- [x] Verify: `cd backend && ./gradlew test`
 
 ### Task 12: Implement ImageExtractor
 
