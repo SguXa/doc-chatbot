@@ -258,7 +258,7 @@ aos-chatbot/
 ├── docker-compose.client.yml
 ├── .env.example
 ├── README.md
-├── ARCHITECTURE.md
+├── CLAUDE.md
 │
 ├── backend/                              # Kotlin + Ktor
 │   ├── build.gradle.kts
@@ -275,39 +275,48 @@ aos-chatbot/
 │       │   │   │   └── ArtemisConfig.kt     # JMS connection
 │       │   │   │
 │       │   │   ├── routes/
-│       │   │   │   ├── ChatRoutes.kt        # POST /api/chat (SSE)
 │       │   │   │   ├── AdminRoutes.kt       # Document management
-│       │   │   │   ├── AuthRoutes.kt        # Login/logout
 │       │   │   │   ├── HealthRoutes.kt      # Health checks
-│       │   │   │   └── ConfigRoutes.kt      # System prompt CRUD
+│       │   │   │   ├── dto/
+│       │   │   │   │   └── AdminResponses.kt # Response DTOs
+│       │   │   │   ├── ChatRoutes.kt        # POST /api/chat (SSE) (Phase 3)
+│       │   │   │   ├── AuthRoutes.kt        # Login/logout (Phase 4)
+│       │   │   │   └── ConfigRoutes.kt      # System prompt CRUD (Phase 5)
 │       │   │   │
 │       │   │   ├── services/
-│       │   │   │   ├── ChatService.kt       # RAG orchestration
-│       │   │   │   ├── EmbeddingService.kt  # Ollama BGE-M3
-│       │   │   │   ├── SearchService.kt     # In-memory vector search
-│       │   │   │   ├── LlmService.kt        # Ollama qwen2.5
-│       │   │   │   ├── QueueService.kt      # Artemis JMS
-│       │   │   │   ├── DocumentService.kt   # CRUD operations
-│       │   │   │   ├── AuthService.kt       # JWT handling
-│       │   │   │   └── ExportService.kt     # Knowledge base export
+│       │   │   │   ├── DocumentService.kt   # Upload pipeline orchestration
+│       │   │   │   ├── UploadResult.kt      # Created | Duplicate
+│       │   │   │   ├── InvalidUploadException.kt
+│       │   │   │   ├── EmptyDocumentException.kt
+│       │   │   │   ├── ChatService.kt       # RAG orchestration (Phase 3)
+│       │   │   │   ├── EmbeddingService.kt  # Ollama BGE-M3 (Phase 3)
+│       │   │   │   ├── SearchService.kt     # In-memory vector search (Phase 3)
+│       │   │   │   ├── LlmService.kt        # Ollama qwen2.5 (Phase 3)
+│       │   │   │   ├── QueueService.kt      # Artemis JMS (Phase 3+)
+│       │   │   │   ├── AuthService.kt       # JWT handling (Phase 4)
+│       │   │   │   └── ExportService.kt     # Knowledge base export (Phase 5)
 │       │   │   │
 │       │   │   ├── parsers/
 │       │   │   │   ├── DocumentParser.kt    # Interface
+│       │   │   │   ├── ParserFactory.kt     # Extension → parser mapping
 │       │   │   │   ├── WordParser.kt        # Apache POI
 │       │   │   │   ├── PdfParser.kt         # Apache PDFBox
 │       │   │   │   ├── ChunkingService.kt   # Text chunking
+│       │   │   │   ├── ImageExtractor.kt    # Atomic image persistence
+│       │   │   │   ├── UnreadableDocumentException.kt
 │       │   │   │   └── aos/
 │       │   │   │       ├── AosParser.kt     # AOS-specific logic
 │       │   │   │       ├── ComponentParser.kt
-│       │   │   │       ├── TroubleshootParser.kt  # MA-XX codes
-│       │   │   │       └── ProcessParser.kt       # Dataflows
+│       │   │   │       └── TroubleshootParser.kt  # MA-XX codes
 │       │   │   │
 │       │   │   ├── models/
 │       │   │   │   ├── Document.kt
 │       │   │   │   ├── Chunk.kt
-│       │   │   │   ├── ChatMessage.kt
-│       │   │   │   ├── User.kt
-│       │   │   │   └── QueueEvent.kt
+│       │   │   │   ├── ExtractedImage.kt
+│       │   │   │   ├── ParsedContent.kt     # TextBlock + ImageData
+│       │   │   │   ├── ChatMessage.kt       # Phase 3
+│       │   │   │   ├── User.kt              # Phase 4
+│       │   │   │   └── QueueEvent.kt        # Phase 3+
 │       │   │   │
 │       │   │   └── db/
 │       │   │       ├── Database.kt          # SQLite connection
@@ -315,7 +324,8 @@ aos-chatbot/
 │       │   │       └── repositories/
 │       │   │           ├── DocumentRepository.kt
 │       │   │           ├── ChunkRepository.kt
-│       │   │           └── UserRepository.kt
+│       │   │           ├── ImageRepository.kt
+│       │   │           └── UserRepository.kt   # Phase 4
 │       │   │
 │       │   └── resources/
 │       │       ├── application.conf         # Ktor config
@@ -325,15 +335,31 @@ aos-chatbot/
 │       │
 │       └── test/
 │           └── kotlin/com/aos/chatbot/
+│               ├── ApplicationTest.kt
+│               ├── CleanupOrphanTempFilesTest.kt
+│               ├── config/
+│               │   └── AppConfigTest.kt
+│               ├── db/
+│               │   ├── DatabaseTest.kt
+│               │   ├── MigrationsTest.kt
+│               │   └── repositories/
+│               │       ├── DocumentRepositoryTest.kt
+│               │       ├── ChunkRepositoryTest.kt
+│               │       └── ImageRepositoryTest.kt
 │               ├── parsers/
 │               │   ├── WordParserTest.kt
+│               │   ├── PdfParserTest.kt
 │               │   ├── ChunkingServiceTest.kt
-│               │   └── AosParserTest.kt
+│               │   ├── ImageExtractorTest.kt
+│               │   ├── ParserFactoryTest.kt
+│               │   └── aos/
+│               │       ├── AosParserTest.kt
+│               │       └── TroubleshootParserTest.kt
 │               ├── services/
-│               │   ├── SearchServiceTest.kt
-│               │   └── ChatServiceTest.kt
+│               │   └── DocumentServiceTest.kt
 │               └── routes/
-│                   └── ChatRoutesTest.kt
+│                   ├── AdminRoutesTest.kt
+│                   └── HealthRoutesTest.kt
 │
 ├── frontend/                             # React + Vite
 │   ├── package.json
@@ -565,9 +591,11 @@ List all documents. Ordering: **newest first** (`created_at DESC, id DESC`) — 
       "filename": "AOS_Manual.docx",
       "fileType": "docx",
       "fileSize": 2048576,
+      "fileHash": "a1b2c3d4e5...",
       "chunkCount": 124,
       "imageCount": 15,
-      "indexedAt": "2026-04-01T10:30:00Z"
+      "indexedAt": "2026-04-01T10:30:00Z",
+      "createdAt": "2026-04-01T10:30:00Z"
     }
   ],
   "total": 5
@@ -619,6 +647,24 @@ Upload, parse, and index a document **synchronously**. The response is returned 
 }
 ```
 
+`413 Payload Too Large` — file exceeds the 100 MB upload limit:
+```json
+{
+  "error": "invalid_upload",
+  "reason": "file_too_large",
+  "message": "File exceeds maximum upload size of 100 MB"
+}
+```
+
+`415 Unsupported Media Type` — request is not `multipart/form-data`:
+```json
+{
+  "error": "invalid_upload",
+  "reason": "invalid_content_type",
+  "message": "Request must be multipart/form-data"
+}
+```
+
 `409 Conflict` — a document with identical content (same SHA-256) already exists:
 ```json
 {
@@ -637,7 +683,21 @@ Upload, parse, and index a document **synchronously**. The response is returned 
 **Deployment note — pre-auth window.** Until Phase 4 introduces authentication (§11), `POST /api/admin/documents` and the other admin routes are **unprotected**. The only acceptable public-facing deployment mode is `MODE=client`, which exposes chat only and registers no admin routes. `MODE=full` and `MODE=admin` must be restricted to internal networks until auth lands. Application startup emits a `WARN` log line in unprotected modes. See [ADR 0005](adr/0005-auth-deferred-out-of-phase-2.md).
 
 #### DELETE /api/admin/documents/{id}
-Delete document and all associated chunks/images.
+Delete document and all associated chunks/images. Also removes the source file from disk and the image directory.
+
+**Responses:**
+
+`204 No Content` — document and associated files deleted successfully.
+
+`400 Bad Request` — invalid document ID:
+```json
+{"error": "Invalid document ID"}
+```
+
+`404 Not Found` — no document with the given ID:
+```json
+{"error": "Document not found"}
+```
 
 #### POST /api/admin/reindex
 Reindex all documents.

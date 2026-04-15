@@ -100,8 +100,13 @@ class PdfParser : DocumentParser {
                     val baos = ByteArrayOutputStream()
                     val image = xObject.image
                     if (image != null) {
-                        ImageIO.write(image, suffix, baos)
-                        baos.toByteArray()
+                        val written = ImageIO.write(image, suffix, baos)
+                        if (written && baos.size() > 0) {
+                            baos.toByteArray()
+                        } else {
+                            // ImageIO could not encode to this suffix; fall back to raw stream
+                            xObject.createInputStream().use { it.readAllBytes() }
+                        }
                     } else {
                         xObject.createInputStream().use { it.readAllBytes() }
                     }

@@ -42,11 +42,15 @@ Copy `.env.example` to `.env` and adjust values as needed.
 docker compose build
 docker compose up -d
 
-# Development (with live reload)
+# Development (full mode with admin routes exposed)
 docker compose -f docker-compose.dev.yml up
 ```
 
-Health endpoints:
+Health endpoints (production — via frontend proxy on port 3000):
+- Liveness: http://localhost:3000/api/health
+- Readiness: http://localhost:3000/api/health/ready
+
+Health endpoints (dev — backend port exposed directly):
 - Liveness: http://localhost:8080/api/health
 - Readiness: http://localhost:8080/api/health/ready
 
@@ -79,12 +83,25 @@ cd frontend
 npm run lint
 ```
 
+## Document Management (Admin)
+
+In `MODE=full` or `MODE=admin`, the following admin endpoints are available:
+
+- `POST /api/admin/documents` — Upload and index a document (multipart/form-data, max 100 MB)
+- `GET /api/admin/documents` — List all indexed documents
+- `DELETE /api/admin/documents/{id}` — Delete a document and its chunks/images
+
+Supported document formats: `.docx` (Word) and `.pdf`.
+
+Admin routes are unprotected until Phase 4 (auth). Restrict admin-mode deployments to internal networks.
+
 ## Configuration
 
 Path-related environment variables derive from a single base (`DATA_PATH`). Setting only `DATA_PATH` is sufficient for normal deployments.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
+| `MODE` | `full` | Application mode: `full`, `admin`, or `client` |
 | `DATA_PATH` | `./data` | Base data directory |
 | `DATABASE_PATH` | `./data/aos.db` | SQLite database file |
 | `DOCUMENTS_PATH` | `${DATA_PATH}/documents` | Uploaded source documents |

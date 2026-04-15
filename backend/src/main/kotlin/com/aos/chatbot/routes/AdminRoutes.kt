@@ -36,33 +36,55 @@ fun Route.adminRoutes(documentService: DocumentService, database: Database, docu
             var fileBytes: ByteArray? = null
             var oversize = false
 
-            val multipart = call.receiveMultipart()
-            multipart.forEachPart { part ->
-                when (part) {
-                    is PartData.FileItem -> {
-                        filename = part.originalFileName
-                        val stream = part.streamProvider()
-                        val buffer = java.io.ByteArrayOutputStream()
-                        val readBuf = ByteArray(8192)
-                        var totalRead = 0L
-                        while (true) {
-                            val n = stream.read(readBuf)
-                            if (n == -1) break
-                            totalRead += n
-                            if (totalRead > MAX_UPLOAD_SIZE) {
-                                oversize = true
-                                break
+            val multipart = try {
+                call.receiveMultipart()
+            } catch (e: Exception) {
+                call.respond(
+                    HttpStatusCode.UnsupportedMediaType,
+                    InvalidUploadResponse(
+                        reason = "invalid_content_type",
+                        message = "Request must be multipart/form-data"
+                    )
+                )
+                return@post
+            }
+            try {
+                multipart.forEachPart { part ->
+                    when (part) {
+                        is PartData.FileItem -> {
+                            filename = part.originalFileName
+                            val stream = part.streamProvider()
+                            val buffer = java.io.ByteArrayOutputStream()
+                            val readBuf = ByteArray(8192)
+                            var totalRead = 0L
+                            while (true) {
+                                val n = stream.read(readBuf)
+                                if (n == -1) break
+                                totalRead += n
+                                if (totalRead > MAX_UPLOAD_SIZE) {
+                                    oversize = true
+                                    break
+                                }
+                                buffer.write(readBuf, 0, n)
                             }
-                            buffer.write(readBuf, 0, n)
+                            stream.close()
+                            if (!oversize) {
+                                fileBytes = buffer.toByteArray()
+                            }
                         }
-                        stream.close()
-                        if (!oversize) {
-                            fileBytes = buffer.toByteArray()
-                        }
+                        else -> {}
                     }
-                    else -> {}
+                    part.dispose()
                 }
-                part.dispose()
+            } catch (e: Exception) {
+                call.respond(
+                    HttpStatusCode.BadRequest,
+                    InvalidUploadResponse(
+                        reason = "malformed_multipart",
+                        message = "Malformed multipart request body"
+                    )
+                )
+                return@post
             }
 
             if (oversize) {

@@ -38,7 +38,7 @@ class DocumentService(
     suspend fun processDocument(originalFilename: String, bytes: ByteArray): UploadResult =
         withContext(Dispatchers.IO) {
             // Validation step
-            val trimmedFilename = originalFilename.trim()
+            val trimmedFilename = Path.of(originalFilename.trim()).fileName?.toString()?.trim() ?: ""
             if (trimmedFilename.isEmpty()) {
                 throw InvalidUploadException("missing_filename", "Filename must not be empty")
             }
@@ -140,6 +140,8 @@ class DocumentService(
                     if (e.message?.contains("UNIQUE constraint failed") == true) {
                         conn.rollback()
                         conn.close()
+                        // Clean up source file written before the persist phase
+                        runCatching { Files.deleteIfExists(finalPath) }
                         // Race-condition: another thread inserted the same hash
                         database.connect().use { lookupConn ->
                             val existing = DocumentRepository(lookupConn).findByHash(hash)
