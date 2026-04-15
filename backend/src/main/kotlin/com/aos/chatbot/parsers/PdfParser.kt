@@ -255,10 +255,11 @@ class PdfParser : DocumentParser {
         val letters = trimmed.filter { it.isLetter() }
         if (letters.isEmpty()) return false
         if (letters.all { it.isUpperCase() }) return true
-        // Also detect numbered section headings like "3.2.1 Component Setup"
-        if (sectionNumberPattern.matches(trimmed)) {
-            // Only if it's relatively short
-            return trimmed.length <= 80
+        // Detect numbered section headings like "3.2.1 Component Setup"
+        // Require at least one dot-separated level to avoid matching body text like "3 items found"
+        val sectionMatch = sectionNumberPattern.matchEntire(trimmed)
+        if (sectionMatch != null && sectionMatch.groupValues[1].contains('.') && trimmed.length <= 80) {
+            return true
         }
         return false
     }

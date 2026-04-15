@@ -5,6 +5,9 @@ import com.aos.chatbot.db.repositories.DocumentRepository
 import com.aos.chatbot.parsers.UnreadableDocumentException
 import java.nio.file.Files
 import java.nio.file.Path
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import org.slf4j.LoggerFactory
 import com.aos.chatbot.routes.dto.DocumentListResponse
 import com.aos.chatbot.routes.dto.DuplicateDocumentResponse
 import com.aos.chatbot.routes.dto.EmptyDocumentResponse
@@ -28,6 +31,7 @@ import io.ktor.server.routing.post
 import io.ktor.server.routing.route
 
 private const val MAX_UPLOAD_SIZE = 100L * 1024 * 1024 // 100 MB
+private val logger = LoggerFactory.getLogger("AdminRoutes")
 
 fun Route.adminRoutes(documentService: DocumentService, database: Database, documentsPath: String = "", imagesPath: String = "") {
     route("/api/admin") {
@@ -143,45 +147,54 @@ fun Route.adminRoutes(documentService: DocumentService, database: Database, docu
         }
 
         get("/documents") {
-            database.connect().use { conn ->
-                val documents = DocumentRepository(conn).findAll()
-                call.respond(HttpStatusCode.OK, DocumentListResponse(documents = documents, total = documents.size))
+            val documents = withContext(Dispatchers.IO) {
+                database.connect().use { conn ->
+                    DocumentRepository(conn).findAll()
+                }
             }
+            call.respond(HttpStatusCode.OK, DocumentListResponse(documents = documents, total = documents.size))
         }
 
         delete("/documents/{id}") {
             val id = call.parameters["id"]?.toLongOrNull()
                 ?: return@delete call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid document ID"))
 
-            database.connect().use { conn ->
-                val repo = DocumentRepository(conn)
-                val doc = repo.findById(id)
-                if (doc == null) {
-                    call.respond(HttpStatusCode.NotFound, mapOf("error" to "Document not found"))
-                    return@use
-                }
-                repo.delete(id)
-
-                // Clean up source file
-                if (documentsPath.isNotEmpty()) {
-                    val sourceFile = Path.of(documentsPath, "${doc.fileHash}.${doc.fileType}")
-                    runCatching { Files.deleteIfExists(sourceFile) }
-                }
-                // Clean up image directory
-                if (imagesPath.isNotEmpty()) {
-                    val imageDir = Path.of(imagesPath, id.toString())
-                    if (Files.exists(imageDir)) {
-                        runCatching {
-                            Files.walk(imageDir).use { stream ->
-                                stream.sorted(Comparator.reverseOrder())
-                                    .forEach { Files.deleteIfExists(it) }
-                            }
-                        }
+            val doc = withContext(Dispatchers.IO) {
+                database.connect().use { conn ->
+                    val repo = DocumentRepository(conn)
+                    val found = repo.findById(id)
+                    if (found != null) {
+                        repo.delete(id)
                     }
+                    found
                 }
-
-                call.respond(HttpStatusCode.NoContent)
             }
+
+            if (doc == null) {
+                call.respond(HttpStatusCode.NotFound, mapOf("error" to "Document not found"))
+                return@delete
+            }
+
+            // Clean up source file
+            if (documentsPath.isNotEmpty()) {
+                val sourceFile = Path.of(documentsPath, "${doc.fileHash}.${doc.fileType}")
+                runCatching { Files.deleteIfExists(sourceFile) }
+                    .onFailure { logger.warn("Failed to delete source file {}: {}", sourceFile, it.message) }
+            }
+            // Clean up image directory
+            if (imagesPath.isNotEmpty()) {
+                val imageDir = Path.of(imagesPath, id.toString())
+                if (Files.exists(imageDir)) {
+                    runCatching {
+                        Files.walk(imageDir).use { stream ->
+                            stream.sorted(Comparator.reverseOrder())
+                                .forEach { Files.deleteIfExists(it) }
+                        }
+                    }.onFailure { logger.warn("Failed to delete image directory {}: {}", imageDir, it.message) }
+                }
+            }
+
+            call.respond(HttpStatusCode.NoContent)
         }
     }
 }
