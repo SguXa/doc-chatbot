@@ -177,7 +177,8 @@ class DocumentService(
                 committed = true
 
                 // Re-read committed state
-                val finalDoc = docRepo.findById(documentId)!!
+                val finalDoc = docRepo.findById(documentId)
+                    ?: throw IllegalStateException("Document $documentId missing after successful commit")
                 conn.close()
                 conn = null
 

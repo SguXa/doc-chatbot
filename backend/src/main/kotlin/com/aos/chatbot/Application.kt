@@ -50,6 +50,7 @@ fun Application.module() {
 
     val dbConfig = DatabaseConfig(appConfig)
     val connection = dbConfig.initialize()
+    connection.close() // Migration connection is no longer needed; keeping it open blocks WAL checkpointing
 
     // Cleanup orphan temp files after migrations, before route registration
     if (appConfig.mode in listOf(AppMode.FULL, AppMode.ADMIN)) {
@@ -61,10 +62,6 @@ fun Application.module() {
 
     // Wire stateless dependencies
     val database = Database(appConfig.databasePath)
-
-    environment.monitor.subscribe(ApplicationStopped) {
-        connection.close()
-    }
     val parserFactory = ParserFactory()
     val aosParser = AosParser()
     val chunkingService = ChunkingService()

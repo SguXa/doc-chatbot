@@ -210,7 +210,7 @@ class AdminRoutesTest {
         assertEquals(HttpStatusCode.BadRequest, response.status)
         val body = Json.decodeFromString<JsonObject>(response.bodyAsText())
         assertEquals("unreadable_document", body["error"]?.jsonPrimitive?.content)
-        assertEquals("corrupted", body["reason"]?.jsonPrimitive?.content)
+        assertEquals("corrupted_docx", body["reason"]?.jsonPrimitive?.content)
 
         val bodyText = response.bodyAsText()
         assertFalse(bodyText.contains("apache.poi"), "Response should not leak POI internals")
@@ -240,7 +240,7 @@ class AdminRoutesTest {
         assertEquals(HttpStatusCode.BadRequest, response.status)
         val body = Json.decodeFromString<JsonObject>(response.bodyAsText())
         assertEquals("unreadable_document", body["error"]?.jsonPrimitive?.content)
-        assertEquals("encrypted", body["reason"]?.jsonPrimitive?.content)
+        assertEquals("encrypted_pdf", body["reason"]?.jsonPrimitive?.content)
     }
 
     @Test
@@ -263,7 +263,7 @@ class AdminRoutesTest {
         assertEquals(HttpStatusCode.BadRequest, response.status)
         val body = Json.decodeFromString<JsonObject>(response.bodyAsText())
         assertEquals("empty_content", body["error"]?.jsonPrimitive?.content)
-        assertEquals("empty_content", body["reason"]?.jsonPrimitive?.content)
+        assertEquals("no_extractable_content", body["reason"]?.jsonPrimitive?.content)
     }
 
     @Test

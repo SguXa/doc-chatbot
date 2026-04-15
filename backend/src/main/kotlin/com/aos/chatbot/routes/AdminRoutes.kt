@@ -106,7 +106,7 @@ fun Route.adminRoutes(documentService: DocumentService, database: Database, docu
                 call.respond(
                     HttpStatusCode.BadRequest,
                     UnreadableDocumentResponse(
-                        reason = e.reason.code,
+                        reason = "${e.reason.code}_${e.fileType}",
                         message = "Unable to read ${e.fileType} document: ${e.reason.code}"
                     )
                 )

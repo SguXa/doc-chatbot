@@ -27,7 +27,7 @@ data class UnreadableDocumentResponse(
 @Serializable
 data class EmptyDocumentResponse(
     val error: String = "empty_content",
-    val reason: String = "empty_content",
+    val reason: String = "no_extractable_content",
     val message: String
 )
 

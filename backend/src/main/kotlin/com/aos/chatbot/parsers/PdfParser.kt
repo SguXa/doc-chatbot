@@ -95,8 +95,6 @@ class PdfParser : DocumentParser {
             val xObject = resources.getXObject(name) ?: continue
             if (xObject is PDImageXObject) {
                 val suffix = xObject.suffix ?: "png"
-                val filename = "img_p%d_%03d.%s".format(pageNumber, imageSeq, suffix)
-                imageSeq++
 
                 val data = try {
                     val baos = ByteArrayOutputStream()
@@ -118,6 +116,8 @@ class PdfParser : DocumentParser {
                 }
 
                 if (data.isNotEmpty()) {
+                    val filename = "img_p%d_%03d.%s".format(pageNumber, imageSeq, suffix)
+                    imageSeq++
                     images.add(
                         ImageData(
                             filename = filename,
