@@ -189,8 +189,7 @@ class DocumentService(
                 ChunkRepository(conn).insertBatch(chunks)
 
                 // Update counts and indexedAt
-                docRepo.updateChunkCount(documentId, chunks.size, processed.images.size)
-                docRepo.updateIndexedAt(documentId)
+                docRepo.updateAfterIndexing(documentId, chunks.size, processed.images.size)
 
                 conn.commit()
                 committed = true

@@ -96,26 +96,17 @@ class DocumentRepositoryTest {
     }
 
     @Test
-    fun `updateChunkCount updates counts`() {
+    fun `updateAfterIndexing updates counts and sets timestamp`() {
         val doc = repo.insert(sampleDocument())
         assertEquals(0, doc.chunkCount)
         assertEquals(0, doc.imageCount)
+        assertNull(doc.indexedAt)
 
-        repo.updateChunkCount(doc.id, 5, 3)
+        repo.updateAfterIndexing(doc.id, 5, 3)
 
         val updated = repo.findById(doc.id)!!
         assertEquals(5, updated.chunkCount)
         assertEquals(3, updated.imageCount)
-    }
-
-    @Test
-    fun `updateIndexedAt sets timestamp`() {
-        val doc = repo.insert(sampleDocument())
-        assertNull(doc.indexedAt)
-
-        repo.updateIndexedAt(doc.id)
-
-        val updated = repo.findById(doc.id)!!
         assertNotNull(updated.indexedAt)
     }
 

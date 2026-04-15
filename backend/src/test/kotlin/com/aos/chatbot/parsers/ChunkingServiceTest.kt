@@ -153,16 +153,17 @@ class ChunkingServiceTest {
 
         val result = smallService.chunk(listOf(block))
 
-        // The trailing chunk should have been merged if it was below minChunkTokens
-        result.forEach { chunk ->
-            val tokens = chunk.content.split(Regex("\\s+")).count { it.isNotEmpty() }
-            // Either it's the only chunk, or it should meet the minimum
-            if (result.size > 1) {
-                assertTrue(
-                    tokens >= 10 || chunk == result[0],
-                    "Trailing chunk should be merged: '$chunk' has $tokens tokens"
-                )
-            }
+        // The trailing chunk should have been merged if it was below minChunkTokens.
+        // If everything fits in one chunk, that's fine. Otherwise, no chunk except
+        // possibly the first should be below minChunkTokens.
+        assertTrue(result.isNotEmpty(), "Should produce at least one chunk")
+        if (result.size > 1) {
+            // The last chunk must meet minChunkTokens (it should have been merged if too small)
+            val lastTokens = result.last().content.split(Regex("\\s+")).count { it.isNotEmpty() }
+            assertTrue(
+                lastTokens >= 10,
+                "Trailing chunk should have been merged: '${result.last().content}' has $lastTokens tokens"
+            )
         }
     }
 

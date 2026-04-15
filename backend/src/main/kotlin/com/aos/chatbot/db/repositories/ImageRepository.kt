@@ -16,7 +16,8 @@ class ImageRepository(private val conn: Connection) {
             INSERT INTO images (document_id, filename, path, page_number, caption, description, embedding)
             VALUES (?, ?, ?, ?, ?, ?, ?)
         """.trimIndent()
-        conn.prepareStatement(sql).use { stmt ->
+        val id: Long
+        conn.prepareStatement(sql, java.sql.Statement.RETURN_GENERATED_KEYS).use { stmt ->
             stmt.setLong(1, image.documentId)
             stmt.setString(2, image.filename)
             stmt.setString(3, image.path)
@@ -25,11 +26,9 @@ class ImageRepository(private val conn: Connection) {
             stmt.setString(6, image.description)
             if (image.embedding != null) stmt.setBytes(7, image.embedding) else stmt.setNull(7, java.sql.Types.BLOB)
             stmt.executeUpdate()
-        }
-        val id = conn.createStatement().use { stmt ->
-            val rs = stmt.executeQuery("SELECT last_insert_rowid()")
-            rs.next()
-            rs.getLong(1)
+            val keys = stmt.generatedKeys
+            keys.next()
+            id = keys.getLong(1)
         }
         return findById(id)!!
     }

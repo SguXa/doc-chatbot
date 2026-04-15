@@ -16,7 +16,8 @@ class DocumentRepository(private val conn: Connection) {
             INSERT INTO documents (filename, file_type, file_size, file_hash, chunk_count, image_count, indexed_at)
             VALUES (?, ?, ?, ?, ?, ?, ?)
         """.trimIndent()
-        conn.prepareStatement(sql).use { stmt ->
+        val id: Long
+        conn.prepareStatement(sql, java.sql.Statement.RETURN_GENERATED_KEYS).use { stmt ->
             stmt.setString(1, document.filename)
             stmt.setString(2, document.fileType)
             stmt.setLong(3, document.fileSize)
@@ -25,11 +26,9 @@ class DocumentRepository(private val conn: Connection) {
             stmt.setInt(6, document.imageCount)
             stmt.setString(7, document.indexedAt)
             stmt.executeUpdate()
-        }
-        val id = conn.createStatement().use { stmt ->
-            val rs = stmt.executeQuery("SELECT last_insert_rowid()")
-            rs.next()
-            rs.getLong(1)
+            val keys = stmt.generatedKeys
+            keys.next()
+            id = keys.getLong(1)
         }
         return findById(id)!!
     }
@@ -67,20 +66,12 @@ class DocumentRepository(private val conn: Connection) {
         }
     }
 
-    fun updateChunkCount(id: Long, chunkCount: Int, imageCount: Int) {
-        val sql = "UPDATE documents SET chunk_count = ?, image_count = ? WHERE id = ?"
+    fun updateAfterIndexing(id: Long, chunkCount: Int, imageCount: Int) {
+        val sql = "UPDATE documents SET chunk_count = ?, image_count = ?, indexed_at = CURRENT_TIMESTAMP WHERE id = ?"
         conn.prepareStatement(sql).use { stmt ->
             stmt.setInt(1, chunkCount)
             stmt.setInt(2, imageCount)
             stmt.setLong(3, id)
-            stmt.executeUpdate()
-        }
-    }
-
-    fun updateIndexedAt(id: Long) {
-        val sql = "UPDATE documents SET indexed_at = CURRENT_TIMESTAMP WHERE id = ?"
-        conn.prepareStatement(sql).use { stmt ->
-            stmt.setLong(1, id)
             stmt.executeUpdate()
         }
     }
