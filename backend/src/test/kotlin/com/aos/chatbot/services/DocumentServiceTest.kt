@@ -218,6 +218,48 @@ class DocumentServiceTest {
         assertEquals("concurrent.docx", result.document.filename)
     }
 
+    @Test
+    fun `race duplicate with existing target file still returns Duplicate`() = runBlocking {
+        // Simulate a race where another thread already moved the hash-named file into
+        // place AND inserted its DB row AFTER this thread's hash pre-check passed but
+        // BEFORE this thread's own move + insert complete.
+        // On Linux/JDK, ATOMIC_MOVE + REPLACE_EXISTING typically succeeds even when the
+        // target exists, so this test reliably exercises the DB UNIQUE-constraint handler
+        // rather than the move-failure catch. On filesystems where ATOMIC_MOVE rejects an
+        // existing target, the move-failure handler is also exercised.
+        val bytes = "move-race-content".toByteArray()
+        val hash = sha256(bytes)
+
+        // Pre-place the target file on disk (simulating a concurrent thread that already moved it)
+        val docsDir = Path.of(documentsPath)
+        Files.createDirectories(docsDir)
+        val targetFile = docsDir.resolve("$hash.docx")
+        Files.write(targetFile, bytes)
+
+        // Insert the DB row during parsing — after the hash pre-check has already passed
+        // but before the service's own DB insert, simulating the concurrent thread
+        // completing between those two points.
+        val raceParser = mockk<DocumentParser>()
+        every { raceParser.parse(any()) } answers {
+            database.connect().use { conn ->
+                DocumentRepository(conn).insert(
+                    com.aos.chatbot.models.Document(
+                        filename = "winner.docx",
+                        fileType = "docx",
+                        fileSize = bytes.size.toLong(),
+                        fileHash = hash
+                    )
+                )
+            }
+            sampleContent
+        }
+        every { parserFactory.getParser(any()) } returns raceParser
+
+        val result = service.processDocument("latecomer.docx", bytes)
+        assertIs<UploadResult.Duplicate>(result)
+        assertEquals("winner.docx", result.document.filename)
+    }
+
     // --- Validation errors ---
 
     @Test

@@ -16,13 +16,15 @@ class ChunkingService(
 
     fun chunk(textBlocks: List<TextBlock>): List<TextBlock> {
         val result = mutableListOf<TextBlock>()
+        val origins = mutableListOf<Int>()
 
-        for (block in textBlocks) {
+        for ((index, block) in textBlocks.withIndex()) {
             val chunks = splitBlock(block)
             result.addAll(chunks)
+            repeat(chunks.size) { origins.add(index) }
         }
 
-        return mergeTrailingSmallChunks(result)
+        return mergeTrailingSmallChunks(result, origins)
     }
 
     private fun splitBlock(block: TextBlock): List<TextBlock> {
@@ -41,8 +43,10 @@ class ChunkingService(
             return listOf(block)
         }
 
-        // Split on sentence boundaries
-        val sentences = splitIntoSentences(block.content)
+        // Split on sentence boundaries, with word-level fallback for oversized sentences
+        val sentences = splitIntoSentences(block.content).flatMap { sentence ->
+            if (estimateTokens(sentence) > maxChunkTokens) splitByWords(sentence) else listOf(sentence)
+        }
         val chunks = mutableListOf<TextBlock>()
         var currentSentences = mutableListOf<String>()
         var currentTokens = 0
@@ -81,7 +85,7 @@ class ChunkingService(
 
         for (sentence in sentences.reversed()) {
             val sentenceTokens = estimateTokens(sentence)
-            if (tokens + sentenceTokens > overlapTokens && result.isNotEmpty()) break
+            if (tokens + sentenceTokens > overlapTokens) break
             result.add(0, sentence)
             tokens += sentenceTokens
         }
@@ -89,10 +93,11 @@ class ChunkingService(
         return result
     }
 
-    private fun mergeTrailingSmallChunks(chunks: List<TextBlock>): List<TextBlock> {
+    private fun mergeTrailingSmallChunks(chunks: List<TextBlock>, origins: List<Int>): List<TextBlock> {
         if (chunks.size <= 1) return chunks
 
         val result = chunks.toMutableList()
+        val originList = origins.toMutableList()
         var i = result.size - 1
 
         while (i > 0) {
@@ -111,21 +116,74 @@ class ChunkingService(
                     prev.sectionId == current.sectionId &&
                     prev.heading == current.heading
                 ) {
+                    val sameOrigin = originList[i - 1] == originList[i]
                     val mergedContent = if (prev.content.isBlank()) current.content
                     else if (current.content.isBlank()) prev.content
+                    else if (sameOrigin) mergeWithOverlapDedup(prev.content, current.content)
                     else "${prev.content} ${current.content}"
+
+                    // Skip merge if result would exceed maxChunkTokens
+                    if (estimateTokens(mergedContent) > maxChunkTokens) {
+                        i--
+                        continue
+                    }
 
                     // Union imageRefs, preserve order, dedupe
                     val mergedRefs = (prev.imageRefs + current.imageRefs).distinct()
 
                     result[i - 1] = prev.copy(content = mergedContent, imageRefs = mergedRefs)
                     result.removeAt(i)
+                    originList.removeAt(i)
                 }
             }
             i--
         }
 
         return result
+    }
+
+    private fun mergeWithOverlapDedup(prevContent: String, currentContent: String): String {
+        val prevSentences = splitIntoSentences(prevContent)
+        val currentSentences = splitIntoSentences(currentContent)
+
+        // Only dedup overlap that could have been synthetically introduced by computeOverlap.
+        // Synthetic overlap is bounded by overlapTokens, so we limit the search to that budget
+        // to avoid stripping legitimately repeated content.
+        val maxPossible = minOf(prevSentences.size, currentSentences.size)
+        var overlapCount = 0
+        for (len in maxPossible downTo 1) {
+            val candidate = prevSentences.takeLast(len)
+            if (estimateTokens(candidate.joinToString(" ")) > overlapTokens) continue
+            if (candidate == currentSentences.take(len)) {
+                overlapCount = len
+                break
+            }
+        }
+
+        val dedupedCurrent = currentSentences.drop(overlapCount)
+        return if (dedupedCurrent.isEmpty()) prevContent
+        else "$prevContent ${dedupedCurrent.joinToString(" ")}"
+    }
+
+    private fun splitByWords(text: String): List<String> {
+        val words = text.split(Regex("""\s+""")).filter { it.isNotEmpty() }
+        val parts = mutableListOf<String>()
+        var current = mutableListOf<String>()
+        var currentTokens = 0
+
+        for (word in words) {
+            if (current.isNotEmpty() && currentTokens + 1 > maxChunkTokens) {
+                parts.add(current.joinToString(" "))
+                current = mutableListOf()
+                currentTokens = 0
+            }
+            current.add(word)
+            currentTokens++
+        }
+        if (current.isNotEmpty()) {
+            parts.add(current.joinToString(" "))
+        }
+        return parts
     }
 
     private fun splitIntoSentences(text: String): List<String> {

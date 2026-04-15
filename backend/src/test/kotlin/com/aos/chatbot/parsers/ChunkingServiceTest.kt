@@ -37,18 +37,26 @@ class ChunkingServiceTest {
     }
 
     @Test
-    fun `never splits mid-sentence`() {
-        // One very long sentence that exceeds max tokens - should stay intact in one chunk
-        // since there are no sentence boundaries to split on
+    fun `splits oversized sentence by words as fallback`() {
+        // One very long sentence that exceeds max tokens — word-level fallback kicks in
         val longSentence = (1..600).joinToString(" ") { "word$it" } + "."
         val block = TextBlock(content = longSentence, type = "text")
 
         val result = service.chunk(listOf(block))
 
-        // With only one sentence, it can't be split further
-        assertEquals(1, result.size)
-        assertTrue(result[0].content.contains("word1"))
-        assertTrue(result[0].content.contains("word600"))
+        assertTrue(result.size > 1, "Expected oversized sentence to be split by words")
+        // Every chunk must respect the token cap
+        result.forEach { chunk ->
+            val tokens = estimateTokens(chunk.content)
+            assertTrue(
+                tokens <= 500,
+                "Chunk exceeds maxChunkTokens ($tokens > 500): '${chunk.content.take(50)}...'"
+            )
+        }
+        // All words must be preserved
+        val allContent = result.joinToString(" ") { it.content }
+        assertTrue(allContent.contains("word1"))
+        assertTrue(allContent.contains("word600"))
     }
 
     // --- Short-text passthrough ---
@@ -346,6 +354,81 @@ class ChunkingServiceTest {
     fun `empty input produces empty output`() {
         val result = service.chunk(emptyList())
         assertTrue(result.isEmpty())
+    }
+
+    // --- Helper ---
+
+    private fun estimateTokens(text: String): Int {
+        return text.split(Regex("""\s+""")).count { it.isNotEmpty() }
+    }
+
+    // --- Overlap dedup does not strip legitimate repetition ---
+
+    @Test
+    fun `mergeWithOverlapDedup preserves legitimately repeated sentence across blocks`() {
+        // Two blocks from the same section where block B legitimately starts with
+        // the same sentence block A ends with. With overlapTokens=0, no synthetic
+        // overlap exists, so nothing should be stripped.
+        val noOverlapService = ChunkingService(maxChunkTokens = 500, overlapTokens = 0, minChunkTokens = 100)
+        val block1 = TextBlock(
+            content = "First paragraph content. Install the software.",
+            type = "text", pageNumber = 1, sectionId = "1.0", heading = "Setup"
+        )
+        val block2 = TextBlock(
+            content = "Install the software. Then configure it.",
+            type = "text", pageNumber = 1, sectionId = "1.0", heading = "Setup"
+        )
+
+        val result = noOverlapService.chunk(listOf(block1, block2))
+
+        // Both blocks are small and share metadata, so they get merged.
+        // The repeated sentence "Install the software." should appear TWICE
+        // because it's legitimate content, not synthetic overlap.
+        assertEquals(1, result.size)
+        val merged = result[0].content
+        val count = Regex(Regex.escape("Install the software.")).findAll(merged).count()
+        assertEquals(2, count, "Legitimately repeated sentence must appear twice, got: $merged")
+    }
+
+    @Test
+    fun `mergeWithOverlapDedup preserves legitimately repeated sentence with default overlap`() {
+        // With default overlapTokens=50, a repeated sentence under 50 tokens must still
+        // survive cross-block merging — it is legitimate content, not synthetic overlap.
+        val defaultService = ChunkingService(maxChunkTokens = 500, overlapTokens = 50, minChunkTokens = 100)
+        val block1 = TextBlock(
+            content = "First paragraph content. Install the software.",
+            type = "text", pageNumber = 1, sectionId = "1.0", heading = "Setup"
+        )
+        val block2 = TextBlock(
+            content = "Install the software. Then configure it.",
+            type = "text", pageNumber = 1, sectionId = "1.0", heading = "Setup"
+        )
+
+        val result = defaultService.chunk(listOf(block1, block2))
+
+        assertEquals(1, result.size)
+        val merged = result[0].content
+        val count = Regex(Regex.escape("Install the software.")).findAll(merged).count()
+        assertEquals(2, count, "Legitimately repeated sentence must appear twice with default overlap, got: $merged")
+    }
+
+    @Test
+    fun `word-split tail is not merged back to exceed maxChunkTokens`() {
+        // A 520-word sentence splits into 500+20. The 20-word tail must NOT be merged
+        // back to recreate a 520-token chunk.
+        val svc = ChunkingService(maxChunkTokens = 500, overlapTokens = 0, minChunkTokens = 100)
+        val longSentence = (1..520).joinToString(" ") { "word$it" } + "."
+        val block = TextBlock(content = longSentence, type = "text")
+
+        val result = svc.chunk(listOf(block))
+
+        result.forEach { chunk ->
+            val tokens = estimateTokens(chunk.content)
+            assertTrue(
+                tokens <= 500,
+                "Merged chunk exceeds maxChunkTokens ($tokens > 500)"
+            )
+        }
     }
 
     // --- Metadata preservation ---

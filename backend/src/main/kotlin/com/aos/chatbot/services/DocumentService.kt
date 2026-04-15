@@ -67,9 +67,26 @@ class DocumentService(
             Files.createDirectories(docsDir)
             val finalPath = docsDir.resolve(sourceFileName)
             val tempPath = Path.of("${finalPath}.tmp.${UUID.randomUUID()}")
+            // Track whether this request owns the hash-named file. When we lose
+            // a move race (another thread already placed an identical file), we
+            // must not delete finalPath on later errors — it belongs to the winner.
+            var ownsSourceFile = false
             try {
                 Files.write(tempPath, bytes)
-                Files.move(tempPath, finalPath, StandardCopyOption.ATOMIC_MOVE)
+                try {
+                    Files.move(tempPath, finalPath, StandardCopyOption.ATOMIC_MOVE)
+                    ownsSourceFile = true
+                } catch (moveEx: Exception) {
+                    // On some filesystems ATOMIC_MOVE does not support replacing an existing
+                    // target. Since the filename is the content hash, an existing target has
+                    // identical content — just discard the temp file and continue. The DB
+                    // unique constraint (line ~139) will still surface Duplicate correctly.
+                    if (Files.exists(finalPath)) {
+                        runCatching { Files.deleteIfExists(tempPath) }
+                    } else {
+                        throw moveEx
+                    }
+                }
             } catch (e: Exception) {
                 runCatching { Files.deleteIfExists(tempPath) }
                 throw e
@@ -81,7 +98,7 @@ class DocumentService(
             try {
                 parsed = parserFactory.getParser(trimmedFilename).parse(sourceFile)
             } catch (e: Exception) {
-                runCatching { Files.deleteIfExists(finalPath) }
+                if (ownsSourceFile) runCatching { Files.deleteIfExists(finalPath) }
                 throw e
             }
 
@@ -90,7 +107,7 @@ class DocumentService(
             try {
                 processed = aosParser.process(parsed)
             } catch (e: Exception) {
-                runCatching { Files.deleteIfExists(finalPath) }
+                if (ownsSourceFile) runCatching { Files.deleteIfExists(finalPath) }
                 throw e
             }
 
@@ -99,13 +116,13 @@ class DocumentService(
             try {
                 chunkedBlocks = chunkingService.chunk(processed.textBlocks)
             } catch (e: Exception) {
-                runCatching { Files.deleteIfExists(finalPath) }
+                if (ownsSourceFile) runCatching { Files.deleteIfExists(finalPath) }
                 throw e
             }
 
             // Empty-content check
             if (chunkedBlocks.isEmpty() && processed.images.isEmpty()) {
-                runCatching { Files.deleteIfExists(finalPath) }
+                if (ownsSourceFile) runCatching { Files.deleteIfExists(finalPath) }
                 throw EmptyDocumentException()
             }
 
@@ -113,7 +130,7 @@ class DocumentService(
             try {
                 validateImageLinkage(chunkedBlocks, processed.images)
             } catch (e: Exception) {
-                runCatching { Files.deleteIfExists(finalPath) }
+                if (ownsSourceFile) runCatching { Files.deleteIfExists(finalPath) }
                 throw e
             }
 
@@ -140,8 +157,8 @@ class DocumentService(
                     if (e.message?.contains("UNIQUE constraint failed") == true) {
                         conn.rollback()
                         conn.close()
-                        // Clean up source file written before the persist phase
-                        runCatching { Files.deleteIfExists(finalPath) }
+                        // Do NOT delete finalPath here — the winning thread's DB row
+                        // references this same hash-named file with identical content.
                         // Race-condition: another thread inserted the same hash
                         database.connect().use { lookupConn ->
                             val existing = DocumentRepository(lookupConn).findByHash(hash)
@@ -178,6 +195,17 @@ class DocumentService(
                 conn.commit()
                 committed = true
 
+                // If a racing uploader that owned the file deleted it after
+                // a transient error, restore the source from the original
+                // bytes (identical content — same hash).
+                if (!ownsSourceFile && !Files.exists(finalPath)) {
+                    try {
+                        Files.write(finalPath, bytes)
+                    } catch (repairEx: Exception) {
+                        logger.warn("Failed to restore source file {} after commit — document {} may reference a missing file", finalPath, documentId, repairEx)
+                    }
+                }
+
                 // Re-read committed state
                 val finalDoc = docRepo.findById(documentId)
                     ?: throw IllegalStateException("Document $documentId missing after successful commit")
@@ -193,8 +221,8 @@ class DocumentService(
                     } catch (_: Exception) {
                     }
 
-                    // Delete source file
-                    runCatching { Files.deleteIfExists(finalPath) }
+                    // Delete source file only if this request placed it
+                    if (ownsSourceFile) runCatching { Files.deleteIfExists(finalPath) }
 
                     // Delete image directory if it was created
                     if (documentId != null) {

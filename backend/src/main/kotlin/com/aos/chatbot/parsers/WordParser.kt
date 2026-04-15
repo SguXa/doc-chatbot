@@ -105,6 +105,18 @@ class WordParser : DocumentParser {
                     val isHeading = styleName.startsWith("Heading", ignoreCase = true) ||
                         styleName.startsWith("heading", ignoreCase = true)
 
+                    if (isHeading) {
+                        // Flush the previous block BEFORE extracting heading images,
+                        // so that images in the heading attach to the next block
+                        // under the new heading, not the previous block.
+                        flushCurrentBlock()
+                        val headingText = element.text.trim()
+                        val match = sectionNumberPattern.matchEntire(headingText)
+                        currentSectionId = match?.groupValues?.get(1)
+                        currentHeading = headingText
+                        currentParagraphs = mutableListOf()
+                    }
+
                     // Extract inline images from runs
                     for (run in element.runs) {
                         for (pic in run.embeddedPictures) {
@@ -124,14 +136,7 @@ class WordParser : DocumentParser {
                         }
                     }
 
-                    if (isHeading) {
-                        flushCurrentBlock()
-                        val headingText = element.text.trim()
-                        val match = sectionNumberPattern.matchEntire(headingText)
-                        currentSectionId = match?.groupValues?.get(1)
-                        currentHeading = headingText
-                        currentParagraphs = mutableListOf()
-                    } else {
+                    if (!isHeading) {
                         val text = element.text.trim()
                         if (text.isNotEmpty()) {
                             currentParagraphs.add(text)
