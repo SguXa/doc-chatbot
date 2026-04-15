@@ -94,7 +94,7 @@ class PdfParser : DocumentParser {
         for (name in resources.xObjectNames) {
             val xObject = resources.getXObject(name) ?: continue
             if (xObject is PDImageXObject) {
-                val suffix = xObject.suffix ?: "png"
+                val suffix = (xObject.suffix ?: "png").replace(Regex("[^a-zA-Z0-9]"), "")
 
                 val data = try {
                     val baos = ByteArrayOutputStream()

@@ -109,7 +109,7 @@ class WordParser : DocumentParser {
                     for (run in element.runs) {
                         for (pic in run.embeddedPictures) {
                             val picData = pic.pictureData
-                            val ext = picData.suggestFileExtension() ?: "png"
+                            val ext = (picData.suggestFileExtension() ?: "png").replace(Regex("[^a-zA-Z0-9]"), "")
                             val filename = "img_%03d.%s".format(imageSequence, ext)
                             imageSequence++
                             images.add(
@@ -150,7 +150,7 @@ class WordParser : DocumentParser {
                                 for (run in paragraph.runs) {
                                     for (pic in run.embeddedPictures) {
                                         val picData = pic.pictureData
-                                        val ext = picData.suggestFileExtension() ?: "png"
+                                        val ext = (picData.suggestFileExtension() ?: "png").replace(Regex("[^a-zA-Z0-9]"), "")
                                         val filename = "img_%03d.%s".format(imageSequence, ext)
                                         imageSequence++
                                         images.add(
