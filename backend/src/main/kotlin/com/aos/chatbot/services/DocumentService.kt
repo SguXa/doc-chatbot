@@ -157,6 +157,7 @@ class DocumentService(
                     if (e.message?.contains("UNIQUE constraint failed") == true) {
                         conn.rollback()
                         conn.close()
+                        conn = null
                         // Do NOT delete finalPath here — the winning thread's DB row
                         // references this same hash-named file with identical content.
                         // Race-condition: another thread inserted the same hash

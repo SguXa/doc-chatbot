@@ -102,10 +102,14 @@ Path-related environment variables derive from a single base (`DATA_PATH`). Sett
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `MODE` | `full` | Application mode: `full`, `admin`, or `client` |
+| `PORT` | `8080` | HTTP server port |
+| `HOST` | `0.0.0.0` | HTTP server bind address |
 | `DATA_PATH` | `./data` | Base data directory |
 | `DATABASE_PATH` | `./data/aos.db` | SQLite database file |
 | `DOCUMENTS_PATH` | `${DATA_PATH}/documents` | Uploaded source documents |
 | `IMAGES_PATH` | `${DATA_PATH}/images` | Extracted images |
+| `LOG_LEVEL` | `INFO` | Logging level |
+| `LOG_FORMAT` | `text` | Log output format (`text` or `json`) |
 
 `DOCUMENTS_PATH` and `IMAGES_PATH` may be overridden independently when ops needs to mount them on separate volumes. See `.env.example` for all available variables.
 
