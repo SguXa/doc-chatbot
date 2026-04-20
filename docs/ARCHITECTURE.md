@@ -62,7 +62,7 @@ AOS Documentation Chatbot is an **offline RAG (Retrieval-Augmented Generation) s
 | Layer | Technology | Version | Purpose |
 |-------|------------|---------|---------|
 | **Backend** | Kotlin + Ktor | Kotlin 1.9+, Ktor 2.x | REST API, SSE streaming, coroutines |
-| **Frontend** | React + Vite | React 18, Vite 5 | SPA with TypeScript |
+| **Frontend** | React + Vite | React 19, Vite 8 | SPA with TypeScript |
 | **UI Components** | shadcn/ui + Tailwind | Latest | Modern, accessible components |
 | **Database** | SQLite | 3.x | Documents, chunks, users, embeddings |
 | **State Management** | TanStack Query | v5 | Server state, caching |
@@ -74,7 +74,7 @@ AOS Documentation Chatbot is an **offline RAG (Retrieval-Augmented Generation) s
 | **LLM** | Ollama | qwen2.5:7b-instruct-q4_K_M | Response generation (~6 GB RAM) |
 | **Embeddings** | Ollama | bge-m3 | Multilingual embeddings (~2 GB RAM) |
 | **Vector Search** | In-memory Kotlin | — | Cosine similarity (<10ms for 1000 chunks) |
-| **Vision (Phase 2)** | Ollama | LLaVA / Qwen-VL | Image understanding (~8 GB RAM) |
+| **Vision (future)** | Ollama | LLaVA / Qwen-VL | Image understanding (~8 GB RAM) — see §16 |
 
 ### 2.3 Document Processing
 
@@ -258,7 +258,7 @@ aos-chatbot/
 ├── docker-compose.client.yml
 ├── .env.example
 ├── README.md
-├── ARCHITECTURE.md
+├── CLAUDE.md
 │
 ├── backend/                              # Kotlin + Ktor
 │   ├── build.gradle.kts
@@ -275,39 +275,48 @@ aos-chatbot/
 │       │   │   │   └── ArtemisConfig.kt     # JMS connection
 │       │   │   │
 │       │   │   ├── routes/
-│       │   │   │   ├── ChatRoutes.kt        # POST /api/chat (SSE)
 │       │   │   │   ├── AdminRoutes.kt       # Document management
-│       │   │   │   ├── AuthRoutes.kt        # Login/logout
 │       │   │   │   ├── HealthRoutes.kt      # Health checks
-│       │   │   │   └── ConfigRoutes.kt      # System prompt CRUD
+│       │   │   │   ├── dto/
+│       │   │   │   │   └── AdminResponses.kt # Response DTOs
+│       │   │   │   ├── ChatRoutes.kt        # POST /api/chat (SSE) (Phase 3)
+│       │   │   │   ├── AuthRoutes.kt        # Login/logout (Phase 4)
+│       │   │   │   └── ConfigRoutes.kt      # System prompt CRUD (Phase 5)
 │       │   │   │
 │       │   │   ├── services/
-│       │   │   │   ├── ChatService.kt       # RAG orchestration
-│       │   │   │   ├── EmbeddingService.kt  # Ollama BGE-M3
-│       │   │   │   ├── SearchService.kt     # In-memory vector search
-│       │   │   │   ├── LlmService.kt        # Ollama qwen2.5
-│       │   │   │   ├── QueueService.kt      # Artemis JMS
-│       │   │   │   ├── DocumentService.kt   # CRUD operations
-│       │   │   │   ├── AuthService.kt       # JWT handling
-│       │   │   │   └── ExportService.kt     # Knowledge base export
+│       │   │   │   ├── DocumentService.kt   # Upload pipeline orchestration
+│       │   │   │   ├── UploadResult.kt      # Created | Duplicate
+│       │   │   │   ├── InvalidUploadException.kt
+│       │   │   │   ├── EmptyDocumentException.kt
+│       │   │   │   ├── ChatService.kt       # RAG orchestration (Phase 3)
+│       │   │   │   ├── EmbeddingService.kt  # Ollama BGE-M3 (Phase 3)
+│       │   │   │   ├── SearchService.kt     # In-memory vector search (Phase 3)
+│       │   │   │   ├── LlmService.kt        # Ollama qwen2.5 (Phase 3)
+│       │   │   │   ├── QueueService.kt      # Artemis JMS (Phase 3+)
+│       │   │   │   ├── AuthService.kt       # JWT handling (Phase 4)
+│       │   │   │   └── ExportService.kt     # Knowledge base export (Phase 5)
 │       │   │   │
 │       │   │   ├── parsers/
 │       │   │   │   ├── DocumentParser.kt    # Interface
+│       │   │   │   ├── ParserFactory.kt     # Extension → parser mapping
 │       │   │   │   ├── WordParser.kt        # Apache POI
 │       │   │   │   ├── PdfParser.kt         # Apache PDFBox
 │       │   │   │   ├── ChunkingService.kt   # Text chunking
+│       │   │   │   ├── ImageExtractor.kt    # Atomic image persistence
+│       │   │   │   ├── UnreadableDocumentException.kt
 │       │   │   │   └── aos/
 │       │   │   │       ├── AosParser.kt     # AOS-specific logic
 │       │   │   │       ├── ComponentParser.kt
-│       │   │   │       ├── TroubleshootParser.kt  # MA-XX codes
-│       │   │   │       └── ProcessParser.kt       # Dataflows
+│       │   │   │       └── TroubleshootParser.kt  # MA-XX codes
 │       │   │   │
 │       │   │   ├── models/
 │       │   │   │   ├── Document.kt
 │       │   │   │   ├── Chunk.kt
-│       │   │   │   ├── ChatMessage.kt
-│       │   │   │   ├── User.kt
-│       │   │   │   └── QueueEvent.kt
+│       │   │   │   ├── ExtractedImage.kt
+│       │   │   │   ├── ParsedContent.kt     # TextBlock + ImageData
+│       │   │   │   ├── ChatMessage.kt       # Phase 3
+│       │   │   │   ├── User.kt              # Phase 4
+│       │   │   │   └── QueueEvent.kt        # Phase 3+
 │       │   │   │
 │       │   │   └── db/
 │       │   │       ├── Database.kt          # SQLite connection
@@ -315,7 +324,8 @@ aos-chatbot/
 │       │   │       └── repositories/
 │       │   │           ├── DocumentRepository.kt
 │       │   │           ├── ChunkRepository.kt
-│       │   │           └── UserRepository.kt
+│       │   │           ├── ImageRepository.kt
+│       │   │           └── UserRepository.kt   # Phase 4
 │       │   │
 │       │   └── resources/
 │       │       ├── application.conf         # Ktor config
@@ -325,15 +335,31 @@ aos-chatbot/
 │       │
 │       └── test/
 │           └── kotlin/com/aos/chatbot/
+│               ├── ApplicationTest.kt
+│               ├── CleanupOrphanTempFilesTest.kt
+│               ├── config/
+│               │   └── AppConfigTest.kt
+│               ├── db/
+│               │   ├── DatabaseTest.kt
+│               │   ├── MigrationsTest.kt
+│               │   └── repositories/
+│               │       ├── DocumentRepositoryTest.kt
+│               │       ├── ChunkRepositoryTest.kt
+│               │       └── ImageRepositoryTest.kt
 │               ├── parsers/
 │               │   ├── WordParserTest.kt
+│               │   ├── PdfParserTest.kt
 │               │   ├── ChunkingServiceTest.kt
-│               │   └── AosParserTest.kt
+│               │   ├── ImageExtractorTest.kt
+│               │   ├── ParserFactoryTest.kt
+│               │   └── aos/
+│               │       ├── AosParserTest.kt
+│               │       └── TroubleshootParserTest.kt
 │               ├── services/
-│               │   ├── SearchServiceTest.kt
-│               │   └── ChatServiceTest.kt
+│               │   └── DocumentServiceTest.kt
 │               └── routes/
-│                   └── ChatRoutesTest.kt
+│                   ├── AdminRoutesTest.kt
+│                   └── HealthRoutesTest.kt
 │
 ├── frontend/                             # React + Vite
 │   ├── package.json
@@ -434,7 +460,7 @@ CREATE TABLE chunks (
     page_number INTEGER,
     section_id TEXT,                    -- '3.2.1' | 'MA-03'
     heading TEXT,                       -- Section heading for context
-    embedding BLOB NOT NULL,            -- Float32 array as bytes
+    embedding BLOB,                     -- Float32 array as bytes (nullable until Phase 3)
     image_refs TEXT,                    -- JSON array of image filenames
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     
@@ -449,8 +475,8 @@ CREATE TABLE images (
     path TEXT NOT NULL,                 -- '/data/images/{doc_id}/img_001.png'
     page_number INTEGER,
     caption TEXT,
-    description TEXT,                   -- Phase 2: LLaVA description
-    embedding BLOB,                     -- Phase 2: description embedding
+    description TEXT,                   -- Reserved for future vision-LLM description (see §16)
+    embedding BLOB,                     -- Reserved for future image-description embedding (see §16)
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     
     FOREIGN KEY (document_id) REFERENCES documents(id) ON DELETE CASCADE
@@ -468,6 +494,7 @@ CREATE INDEX idx_chunks_document ON chunks(document_id);
 CREATE INDEX idx_chunks_content_type ON chunks(content_type);
 CREATE INDEX idx_chunks_section ON chunks(section_id);
 CREATE INDEX idx_images_document ON images(document_id);
+CREATE UNIQUE INDEX idx_documents_file_hash_unique ON documents(file_hash);
 ```
 
 ### 6.2 Embedding Storage
@@ -553,7 +580,7 @@ Get sources from the last response.
 ### 7.2 Admin Endpoints
 
 #### GET /api/admin/documents
-List all documents.
+List all documents. Ordering: **newest first** (`created_at DESC, id DESC`) — most recently uploaded documents appear first. The `id DESC` component is the deterministic tie-breaker for uploads within the same second. This ordering is enforced at the repository layer (`DocumentRepository.findAll()`); the route handler does not re-sort.
 
 **Response:**
 ```json
@@ -564,9 +591,11 @@ List all documents.
       "filename": "AOS_Manual.docx",
       "fileType": "docx",
       "fileSize": 2048576,
+      "fileHash": "a1b2c3d4e5...",
       "chunkCount": 124,
       "imageCount": 15,
-      "indexedAt": "2026-04-01T10:30:00Z"
+      "indexedAt": "2026-04-01T10:30:00Z",
+      "createdAt": "2026-04-01T10:30:00Z"
     }
   ],
   "total": 5
@@ -574,22 +603,101 @@ List all documents.
 ```
 
 #### POST /api/admin/documents
-Upload and index a document.
+Upload, parse, and index a document **synchronously**. The response is returned after parsing, chunking, image extraction, and all DB writes complete.
 
 **Request:** `multipart/form-data` with file
 
-**Response:**
+**Responses:**
+
+`201 Created` — document was successfully parsed and indexed:
 ```json
 {
   "id": 6,
   "filename": "NewDoc.docx",
-  "status": "indexing",
-  "jobId": "abc123"
+  "fileType": "docx",
+  "fileSize": 182394,
+  "fileHash": "a1b2c3...",
+  "chunkCount": 42,
+  "imageCount": 3,
+  "indexedAt": "2026-04-14T12:34:56Z",
+  "createdAt": "2026-04-14T12:34:56Z"
 }
 ```
 
+`400 Bad Request` — upload rejected at validation, unparseable content, or empty-after-parse. Body contains a stable `error` discriminator (`invalid_upload`, `unreadable_document`, or `empty_content`) and a `reason` subcode for client branching:
+```json
+{
+  "error": "invalid_upload",
+  "reason": "unsupported_extension",
+  "message": "Unsupported file extension: 'exe'. Supported: docx, pdf"
+}
+```
+```json
+{
+  "error": "unreadable_document",
+  "reason": "corrupted_docx",
+  "message": "The uploaded .docx file could not be parsed: ..."
+}
+```
+```json
+{
+  "error": "empty_content",
+  "reason": "no_extractable_content",
+  "message": "The uploaded document contains no text, tables, or images that can be indexed. It may be a blank document, a scanned PDF without OCR, or a file with only metadata."
+}
+```
+
+`413 Payload Too Large` — file exceeds the 100 MB upload limit:
+```json
+{
+  "error": "invalid_upload",
+  "reason": "file_too_large",
+  "message": "File exceeds maximum upload size of 100 MB"
+}
+```
+
+`415 Unsupported Media Type` — request is not `multipart/form-data`:
+```json
+{
+  "error": "invalid_upload",
+  "reason": "invalid_content_type",
+  "message": "Request must be multipart/form-data"
+}
+```
+
+`409 Conflict` — a document with identical content (same SHA-256) already exists:
+```json
+{
+  "error": "duplicate_document",
+  "message": "A document with identical content has already been indexed. Delete the existing document first if you want to re-index.",
+  "existing": {
+    "id": 42,
+    "filename": "troubleshooting_v2.docx",
+    "indexed_at": "2026-03-28T14:12:03Z"
+  }
+}
+```
+
+**Execution model — synchronous (durable contract).** The endpoint blocks for the full parse/persist pipeline and returns the final outcome in one request/response. There is no `jobId`, no `status: "indexing"` polling, and no separate job status endpoint. If a future phase needs async upload it will introduce a **new endpoint**, not mutate the shape of `POST /api/admin/documents`. See [ADR 0001](adr/0001-synchronous-document-upload.md) for the full rationale.
+
+**Deployment note — pre-auth window.** Until Phase 4 introduces authentication (§11), `POST /api/admin/documents` and the other admin routes are **unprotected**. The only acceptable public-facing deployment mode is `MODE=client`, which exposes chat only and registers no admin routes. `MODE=full` and `MODE=admin` must be restricted to internal networks until auth lands. Application startup emits a `WARN` log line in unprotected modes. See [ADR 0005](adr/0005-auth-deferred-out-of-phase-2.md).
+
 #### DELETE /api/admin/documents/{id}
-Delete document and all associated chunks/images.
+Delete document and all associated chunks/images. Also removes the source file from disk and the image directory.
+
+**Responses:**
+
+`204 No Content` — document and associated files deleted successfully.
+
+`400 Bad Request` — invalid document ID:
+```json
+{"error": "Invalid document ID"}
+```
+
+`404 Not Found` — no document with the given ID:
+```json
+{"error": "Document not found"}
+```
 
 #### POST /api/admin/reindex
 Reindex all documents.
@@ -623,7 +731,9 @@ Update system prompt.
 }
 ```
 
-### 7.4 Auth Endpoints
+### 7.4 Auth Endpoints (Planned for Phase 4)
+
+> **Status: Planned for Phase 4 — not implemented in Phase 2 or Phase 3.** The endpoints below describe the future contract. They are not registered by the current backend. See §11 and [ADR 0005](adr/0005-auth-deferred-out-of-phase-2.md).
 
 #### POST /api/auth/login
 Authenticate user.
@@ -782,7 +892,7 @@ Tables are preserved as structured text with clear column/row relationships.
 
 - Images extracted and saved to `/data/images/{doc_id}/`
 - Reference stored in chunk's `image_refs` field
-- (Phase 2) LLaVA generates textual description
+- *Future enhancement (see §16)*: vision LLM generates a textual description that gets embedded for image-aware retrieval
 
 ### 8.3 Chunking Parameters
 
@@ -792,6 +902,52 @@ Tables are preserved as structured text with clear column/row relationships.
 | Overlap | 50 tokens | Context continuity |
 | Min chunk size | 100 tokens | Avoid tiny fragments |
 | Preserve boundaries | Yes | Don't split mid-sentence |
+
+### 8.4 Image Linkage Contract
+
+The pipeline must not lose the association between extracted images and the text they relate to. This is a durable contract enforced by every parsing component (parsers, chunking service, AOS post-processors, image extractor, document service).
+
+**Stable identifier.** `ImageData.filename` is the stable handle for an image throughout the entire pipeline:
+
+- Parsers generate it. It lives unchanged on `TextBlock.imageRefs` and the resulting `Chunk.imageRefs` as a Kotlin `List<String>` throughout the domain layer.
+- `ImageExtractor` writes the file to disk using this exact filename — no renaming.
+- The `images` table row stores this exact filename.
+- JSON serialization happens **only** at the `ChunkRepository` boundary when binding to `chunks.image_refs`. No other layer touches the JSON form.
+
+**Per-document namespace.** Filenames are scoped per document:
+
+- Disk layout: `{imagesPath}/{documentId}/{filename}`.
+- The `images` table uses `(document_id, filename)` as the logical lookup tuple.
+- Parsers reuse simple per-document schemes without collision between documents.
+
+**Filename conventions parsers MUST follow:**
+
+- **Word (.docx)** — `img_{NNN}.{ext}` where `NNN` is a 3-digit sequence starting at `001`, in document traversal order, and `ext` matches the blob's MIME type (`png`, `jpg`, `gif`, ...).
+- **PDF** — `img_p{PAGE}_{NNN}.{ext}` with the page number embedded in the name. Sequence `NNN` resets per page.
+
+**Referential integrity invariant** (validated before persistence):
+
+- Every filename appearing in any `TextBlock.imageRefs` MUST appear as the `filename` of exactly one `ImageData` in `ParsedContent.images`.
+- Every `ImageData` MUST appear in exactly one `TextBlock.imageRefs` (no orphans, no duplicates across blocks). Exception: PDF parser may emit a synthetic empty `TextBlock` solely to carry image refs for an image-only page.
+- Violations cause pipeline failure with the standard rollback/compensation path — they do not silently drop images.
+
+**Preservation through the pipeline:**
+
+- AOS post-processors MUST NOT drop or rewrite `imageRefs` when converting a block's `type` (e.g., text → troubleshoot). The field passes through unchanged.
+- `ChunkingService` MUST replicate the full `imageRefs` list onto every chunk produced by splitting a parent `TextBlock`. Duplication is cheap and ensures retrieval via any matching chunk surfaces the related images.
+- `ChunkRepository` serializes `List<String>` to a JSON array string when binding to `chunks.image_refs`. **Empty list serializes to SQL `NULL`**, not `"[]"`, to keep the column semantically consistent with "no image references". On read, `NULL` deserializes back to `emptyList()` — no nullable `List<String>?` is surfaced to callers.
+
+### 8.5 pageNumber Population Policy
+
+`pageNumber: Int?` on `TextBlock`, `Chunk`, `ExtractedImage`, and `ImageData` is populated only when the source format provides it reliably.
+
+| Component | pageNumber behavior |
+|-----------|---------------------|
+| **PdfParser** | Sets `pageNumber = N` on every TextBlock and ImageData emitted from page N (1-indexed from PDFBox). |
+| **WordParser** | Sets `pageNumber = null` on every emitted block. Apache POI does not expose reliable rendered page numbers for `.docx`, and no heuristic substitute is permitted (paragraph counts, explicit page breaks, section properties, etc. all give wrong answers under common document layouts). |
+| **ChunkingService, AOS post-processors, ImageExtractor, DocumentService** | Pass `pageNumber` through unchanged. `null` stays `null`, `N` stays `N`. No transformation. |
+
+Downstream consumers (RAG retrieval, future UI citation) MUST handle `null` as "page unknown" and MUST NOT fabricate a default. Changing the WordParser policy to fabricate page numbers requires explicit design review — it is not a quiet refactor.
 
 ---
 
@@ -920,7 +1076,10 @@ sealed class QueueEvent {
 
 ## 11. Authentication
 
-### 11.1 JWT Configuration
+> **Status: deferred to Phase 4 — not implemented in Phase 2 or Phase 3.**
+> During the pre-auth window, admin routes are unprotected. The only acceptable public-facing deployment is `MODE=client` (chat only, no admin routes registered). `MODE=full` and `MODE=admin` MUST be restricted to internal networks until auth lands. See [ADR 0005](adr/0005-auth-deferred-out-of-phase-2.md).
+
+### 11.1 JWT Configuration (Planned for Phase 4)
 
 | Parameter | Value |
 |-----------|-------|
@@ -928,7 +1087,7 @@ sealed class QueueEvent {
 | Expiration | 24 hours |
 | Issuer | aos-chatbot |
 
-### 11.2 Protected Routes
+### 11.2 Protected Routes (Planned for Phase 4)
 
 | Route Pattern | Required Role |
 |---------------|---------------|
@@ -938,7 +1097,7 @@ sealed class QueueEvent {
 | `/api/health/*` | (public) |
 | `/api/auth/*` | (public) |
 
-### 11.3 Default Admin User
+### 11.3 Default Admin User (Planned for Phase 4)
 
 Created on first startup:
 - Username: `admin`
@@ -971,12 +1130,15 @@ ARTEMIS_BROKER_URL=tcp://artemis:61616
 ARTEMIS_USER=
 ARTEMIS_PASSWORD=
 
-# Auth
+# Auth (Phase 4+) — not consumed by the backend until auth lands. See ADR 0005.
 JWT_SECRET=your-secret-key-min-32-chars
 ADMIN_PASSWORD=initial-admin-password
 
 # Paths
 DATA_PATH=/data
+# DOCUMENTS_PATH and IMAGES_PATH default to ${DATA_PATH}/documents and
+# ${DATA_PATH}/images respectively. Override only when ops needs to mount
+# them on separate volumes from DATA_PATH.
 DOCUMENTS_PATH=/data/documents
 IMAGES_PATH=/data/images
 
@@ -1004,6 +1166,16 @@ app {
     database {
         path = ${DATABASE_PATH}
     }
+    data {
+        path = "./data"
+        path = ${?DATA_PATH}
+    }
+    paths {
+        documents = ${app.data.path}/documents
+        documents = ${?DOCUMENTS_PATH}
+        images = ${app.data.path}/images
+        images = ${?IMAGES_PATH}
+    }
     ollama {
         url = ${OLLAMA_URL}
         llmModel = ${OLLAMA_LLM_MODEL}
@@ -1011,6 +1183,19 @@ app {
     }
 }
 ```
+
+### 12.3 Path Defaults and Override Behavior
+
+Path-related env vars derive from a single base, `DATA_PATH`. Setting only `DATA_PATH` is sufficient for normal deployments — the other paths auto-derive via HOCON substitution.
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `DATA_PATH` | `./data` | Base data directory |
+| `DATABASE_PATH` | `./data/aos.db` | SQLite database file |
+| `DOCUMENTS_PATH` | `${DATA_PATH}/documents` | Uploaded source documents |
+| `IMAGES_PATH` | `${DATA_PATH}/images` | Extracted images |
+
+`DOCUMENTS_PATH` and `IMAGES_PATH` may be overridden independently when ops needs to mount them on separate volumes. They are read by `AppConfig` from `app.paths.documents` and `app.paths.images`; no Kotlin code composes these paths ad-hoc.
 
 ---
 
@@ -1031,8 +1216,9 @@ services:
       - DATABASE_PATH=/data/aos.db
       - OLLAMA_URL=http://ollama:11434
       - ARTEMIS_BROKER_URL=tcp://artemis:61616
-      - JWT_SECRET=${JWT_SECRET}
-      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
+      # Auth env vars (Phase 4+) — uncomment once auth lands. See ADR 0005.
+      # - JWT_SECRET=${JWT_SECRET}
+      # - ADMIN_PASSWORD=${ADMIN_PASSWORD}
     volumes:
       - aos-data:/data
     ports:
@@ -1189,13 +1375,15 @@ fun Application.warmupOllama() {
 
 ## 15. Implementation Plan
 
+> This section is the **high-level roadmap only**. Detailed task-by-task execution lives in `docs/plans/`. Architectural decisions with longer rationale live in `docs/adr/`.
+
 ### Phase 1: Foundation (Week 1-2)
 
-- [ ] Project setup (Gradle, Vite, Docker)
-- [ ] Basic Ktor server with routing
-- [ ] SQLite database with migrations
-- [ ] React app with routing
-- [ ] Health check endpoints
+- [x] Project setup (Gradle, Vite, Docker)
+- [x] Basic Ktor server with routing
+- [x] SQLite database with migrations
+- [x] React app with routing
+- [x] Health check endpoints
 
 ### Phase 2: Document Processing (Week 3-4)
 
@@ -1244,7 +1432,9 @@ fun Application.warmupOllama() {
 
 ## 16. Future Enhancements
 
-### Phase 2 Features
+> Items in this section are **not** scoped to any current implementation phase. They are forward-looking enhancements to be planned separately. Do not confuse them with the active `Phase N` work tracked in `docs/plans/`.
+
+### Future Feature Backlog
 
 | Feature | Description | Priority |
 |---------|-------------|----------|

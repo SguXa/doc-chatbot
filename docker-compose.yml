@@ -1,0 +1,31 @@
+services:
+  backend:
+    build: ./backend
+    container_name: aos-backend
+    environment:
+      - MODE=client
+      - PORT=8080
+      - DATABASE_PATH=/data/aos.db
+      - DATA_PATH=/data
+    volumes:
+      - aos-data:/data
+    expose:
+      - "8080"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    container_name: aos-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  aos-data:
