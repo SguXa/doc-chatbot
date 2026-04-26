@@ -48,11 +48,11 @@ Introduce JWT-based authentication for the admin surface. A single administrator
 **Files:**
 - Modify: `backend/build.gradle.kts`
 
-- [ ] Add `io.ktor:ktor-server-auth:$ktorVersion` to `implementation`
-- [ ] Add `io.ktor:ktor-server-auth-jwt:$ktorVersion` to `implementation`
-- [ ] Add `at.favre.lib:bcrypt:0.10.2` to `implementation`
-- [ ] Verify: `cd backend && ./gradlew build` succeeds
-- [ ] Verify: `cd backend && ./gradlew test` still green (no new tests yet)
+- [x] Add `io.ktor:ktor-server-auth:$ktorVersion` to `implementation`
+- [x] Add `io.ktor:ktor-server-auth-jwt:$ktorVersion` to `implementation`
+- [x] Add `at.favre.lib:bcrypt:0.10.2` to `implementation`
+- [x] Verify: `cd backend && ./gradlew build` succeeds
+- [x] Verify: `cd backend && ./gradlew test` still green (no new tests yet)
 
 ### Task 2: Extend AppConfig with AuthConfig
 

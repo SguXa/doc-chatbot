@@ -25,7 +25,12 @@ dependencies {
     implementation("io.ktor:ktor-server-netty:$ktorVersion")
     implementation("io.ktor:ktor-server-content-negotiation:$ktorVersion")
     implementation("io.ktor:ktor-server-status-pages:$ktorVersion")
+    implementation("io.ktor:ktor-server-auth:$ktorVersion")
+    implementation("io.ktor:ktor-server-auth-jwt:$ktorVersion")
     implementation("io.ktor:ktor-serialization-kotlinx-json:$ktorVersion")
+
+    // Password hashing
+    implementation("at.favre.lib:bcrypt:0.10.2")
 
     // Ktor HTTP client (Ollama integration)
     implementation("io.ktor:ktor-client-core:$ktorVersion")
