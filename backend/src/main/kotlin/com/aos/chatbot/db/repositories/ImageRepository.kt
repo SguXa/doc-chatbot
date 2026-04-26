@@ -57,6 +57,14 @@ class ImageRepository(private val conn: Connection) {
         }
     }
 
+    fun count(): Long {
+        conn.createStatement().use { stmt ->
+            val rs = stmt.executeQuery("SELECT COUNT(*) FROM images")
+            rs.next()
+            return rs.getLong(1)
+        }
+    }
+
     private fun findById(id: Long): ExtractedImage? {
         val sql = "SELECT * FROM images WHERE id = ?"
         conn.prepareStatement(sql).use { stmt ->

@@ -88,6 +88,39 @@ class ChunkRepository(private val conn: Connection) {
         }
     }
 
+    /**
+     * Returns all chunk IDs whose `embedding` column is SQL NULL, ordered by `id ASC`.
+     * Used by the startup backfill job and by the admin reindex flow.
+     */
+    fun findIdsWithNullEmbedding(): List<Long> {
+        val sql = "SELECT id FROM chunks WHERE embedding IS NULL ORDER BY id ASC"
+        conn.createStatement().use { stmt ->
+            val rs = stmt.executeQuery(sql)
+            val out = mutableListOf<Long>()
+            while (rs.next()) out.add(rs.getLong(1))
+            return out
+        }
+    }
+
+    fun findById(id: Long): Chunk? {
+        val sql = "SELECT * FROM chunks WHERE id = ?"
+        conn.prepareStatement(sql).use { stmt ->
+            stmt.setLong(1, id)
+            val rs = stmt.executeQuery()
+            return if (rs.next()) mapRow(rs) else null
+        }
+    }
+
+    /** Writes a Float32 little-endian embedding blob to the chunk row. */
+    fun updateEmbedding(id: Long, embedding: ByteArray): Int {
+        val sql = "UPDATE chunks SET embedding = ? WHERE id = ?"
+        conn.prepareStatement(sql).use { stmt ->
+            stmt.setBytes(1, embedding)
+            stmt.setLong(2, id)
+            return stmt.executeUpdate()
+        }
+    }
+
     private fun serializeImageRefs(refs: List<String>): String? {
         if (refs.isEmpty()) return null
         return Json.encodeToString(ListSerializer(String.serializer()), refs)

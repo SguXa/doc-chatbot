@@ -5,17 +5,26 @@ import com.aos.chatbot.db.repositories.DocumentRepository
 import com.aos.chatbot.parsers.UnreadableDocumentException
 import java.nio.file.Files
 import java.nio.file.Path
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.slf4j.LoggerFactory
 import com.aos.chatbot.routes.dto.DocumentListResponse
 import com.aos.chatbot.routes.dto.DuplicateDocumentResponse
 import com.aos.chatbot.routes.dto.EmptyDocumentResponse
 import com.aos.chatbot.routes.dto.InvalidUploadResponse
+import com.aos.chatbot.routes.dto.OllamaUnavailableResponse
+import com.aos.chatbot.routes.dto.ReindexAlreadyRunningResponse
+import com.aos.chatbot.routes.dto.ReindexInProgressResponse
+import com.aos.chatbot.routes.dto.ReindexStartedResponse
 import com.aos.chatbot.routes.dto.UnreadableDocumentResponse
+import com.aos.chatbot.services.BackfillStatus
 import com.aos.chatbot.services.DocumentService
+import com.aos.chatbot.services.EmbeddingBackfillJob
 import com.aos.chatbot.services.EmptyDocumentException
 import com.aos.chatbot.services.InvalidUploadException
+import com.aos.chatbot.services.OllamaUnavailableException
 import com.aos.chatbot.services.UploadResult
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.content.PartData
@@ -33,9 +42,25 @@ import io.ktor.server.routing.route
 private const val MAX_UPLOAD_SIZE = 100L * 1024 * 1024 // 100 MB
 private val logger = LoggerFactory.getLogger("AdminRoutes")
 
-fun Route.adminRoutes(documentService: DocumentService, database: Database, documentsPath: String = "", imagesPath: String = "") {
+fun Route.adminRoutes(
+    documentService: DocumentService,
+    database: Database,
+    backfillJob: EmbeddingBackfillJob,
+    applicationScope: CoroutineScope,
+    documentsPath: String = "",
+    imagesPath: String = ""
+) {
     route("/api/admin") {
         post("/documents") {
+            if (backfillJob.isRunning()) {
+                call.respond(
+                    HttpStatusCode.ServiceUnavailable,
+                    ReindexInProgressResponse(
+                        message = "Reindex is running; uploads are temporarily blocked. Please retry shortly."
+                    )
+                )
+                return@post
+            }
             var filename: String? = null
             var fileBytes: ByteArray? = null
             var oversize = false
@@ -143,6 +168,16 @@ fun Route.adminRoutes(documentService: DocumentService, database: Database, docu
                         message = e.message ?: "Document contains no extractable content"
                     )
                 )
+            } catch (e: OllamaUnavailableException) {
+                // Inline embedding (DocumentService) raises this when Ollama is
+                // unreachable. Surface it as a dependency-specific 503 so ops
+                // can distinguish a transient outage from an internal bug,
+                // rather than falling through to the generic 500 handler.
+                logger.warn("Upload failed because Ollama is unavailable: {}", e.message)
+                call.respond(
+                    HttpStatusCode.ServiceUnavailable,
+                    OllamaUnavailableResponse()
+                )
             }
         }
 
@@ -156,19 +191,25 @@ fun Route.adminRoutes(documentService: DocumentService, database: Database, docu
         }
 
         delete("/documents/{id}") {
+            // Fail fast during reindex rather than blocking on the reindex/upload
+            // mutex (which DocumentService.deleteDocument acquires). A reindex
+            // can take minutes — hanging here would trip client timeouts.
+            if (backfillJob.isRunning()) {
+                call.respond(
+                    HttpStatusCode.ServiceUnavailable,
+                    ReindexInProgressResponse(
+                        message = "Reindex is running; deletes are temporarily blocked. Please retry shortly."
+                    )
+                )
+                return@delete
+            }
             val id = call.parameters["id"]?.toLongOrNull()
                 ?: return@delete call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid document ID"))
 
-            val doc = withContext(Dispatchers.IO) {
-                database.connect().use { conn ->
-                    val repo = DocumentRepository(conn)
-                    val found = repo.findById(id)
-                    if (found != null) {
-                        repo.delete(id)
-                    }
-                    found
-                }
-            }
+            // Delegates DB delete + in-memory search-index removal to the service.
+            // Bypassing this (going straight to DocumentRepository) would leave
+            // chunks of the deleted document in SearchService until restart.
+            val doc = documentService.deleteDocument(id)
 
             if (doc == null) {
                 call.respond(HttpStatusCode.NotFound, mapOf("error" to "Document not found"))
@@ -195,6 +236,31 @@ fun Route.adminRoutes(documentService: DocumentService, database: Database, docu
             }
 
             call.respond(HttpStatusCode.NoContent)
+        }
+
+        post("/reindex") {
+            // Refuse while a reindex is in flight OR the startup backfill has not
+            // yet reached a terminal state. Without the status check, a reindex
+            // launched during startup races the backfill loop and can NULL
+            // embeddings the backfill is about to write. Failed is terminal and
+            // must be eligible — /api/chat's BackfillFailedResponse instructs
+            // operators to recover via this route.
+            val status = backfillJob.status()
+            if (backfillJob.isRunning() ||
+                (status !is BackfillStatus.Completed && status !is BackfillStatus.Failed)
+            ) {
+                call.respond(HttpStatusCode.Accepted, ReindexAlreadyRunningResponse())
+                return@post
+            }
+            applicationScope.launch {
+                try {
+                    backfillJob.clearAndReindex()
+                } catch (e: Exception) {
+                    if (e is kotlinx.coroutines.CancellationException) throw e
+                    logger.error("Reindex job failed: {}", e.message, e)
+                }
+            }
+            call.respond(HttpStatusCode.Accepted, ReindexStartedResponse())
         }
     }
 }

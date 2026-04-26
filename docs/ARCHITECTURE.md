@@ -239,8 +239,9 @@ The application supports three modes controlled by `MODE` environment variable:
 **aos-knowledge.zip** contains:
 - `aos.db` — SQLite database with chunks and embeddings
 - `images/` — Extracted images from documents
-- `config/system-prompt.txt` — System prompt configuration
 - `version.txt` — Package version and metadata
+
+The system prompt is stored in the `config` table of `aos.db` and ships inside the database file; there is no separate config text file.
 
 **Not included:**
 - Original Word/PDF documents (not needed for inference)
@@ -254,8 +255,6 @@ The application supports three modes controlled by `MODE` environment variable:
 aos-chatbot/
 ├── docker-compose.yml
 ├── docker-compose.dev.yml
-├── docker-compose.admin.yml
-├── docker-compose.client.yml
 ├── .env.example
 ├── README.md
 ├── CLAUDE.md
@@ -415,11 +414,9 @@ aos-chatbot/
 │           └── utils.ts
 │
 └── data/                                 # Mounted volume
-    ├── aos.db                            # SQLite database
+    ├── aos.db                            # SQLite database (including `config` table — see §4.3)
     ├── documents/                        # Original files (admin only)
-    ├── images/                           # Extracted images
-    └── config/
-        └── system-prompt.txt
+    └── images/                           # Extracted images
 ```
 
 ---
@@ -553,29 +550,20 @@ event: token
 data: {"text": " is"}
 
 event: sources
-data: {"sources": [{"document": "Manual.docx", "section": "3.2", "page": 15}]}
+data: {"sources": [{"documentId": 1, "documentName": "Manual.docx", "section": "3.2", "page": 15, "snippet": "..."}]}
 
 event: done
 data: {"totalTokens": 256}
 ```
 
-#### GET /api/chat/sources
-Get sources from the last response.
+A terminal `event: error` frame with body `{"message": "..."}` replaces `event: done` on mid-stream failures.
 
-**Response:**
-```json
-{
-  "sources": [
-    {
-      "documentId": 1,
-      "documentName": "AOS_Manual.docx",
-      "section": "3.2.1",
-      "page": 15,
-      "snippet": "MA-03 indicates a connection timeout..."
-    }
-  ]
-}
-```
+**Error responses (before SSE opens):**
+
+- `400 Bad Request` with `{"error": "invalid_request", "reason": "malformed_body" | "empty_message" | "message_too_long" | "history_too_long" | "invalid_history_role" | "history_entry_too_long"}` — request validation failed. `message` is capped at 4000 characters; `history` is capped at 20 entries, each with role in `{user, assistant}` and content up to 4000 characters.
+- `503 Service Unavailable` + `Retry-After: 10` with `{"error": "not_ready", "reason": "embedding_backfill_in_progress"}` — backfill has not completed.
+- `503 Service Unavailable` with `{"error": "not_ready", "reason": "embedding_backfill_failed", "message": "..."}` — the startup backfill terminated in a failure state; no `Retry-After` is sent because the condition is not self-healing. An operator must trigger `POST /api/admin/reindex` to clear it.
+- `503 Service Unavailable` with `{"error": "queue_unavailable"}` — Artemis is unreachable.
 
 ### 7.2 Admin Endpoints
 
@@ -624,12 +612,19 @@ Upload, parse, and index a document **synchronously**. The response is returned 
 }
 ```
 
-`400 Bad Request` — upload rejected at validation, unparseable content, or empty-after-parse. Body contains a stable `error` discriminator (`invalid_upload`, `unreadable_document`, or `empty_content`) and a `reason` subcode for client branching:
+`400 Bad Request` — upload rejected at validation, unparseable content, or empty-after-parse. Body contains a stable `error` discriminator (`invalid_upload`, `unreadable_document`, or `empty_content`) and a `reason` subcode for client branching. The `invalid_upload` reasons are `unsupported_extension`, `malformed_multipart`, and the one-off 413/415 subcodes (`file_too_large`, `invalid_content_type`). Examples:
 ```json
 {
   "error": "invalid_upload",
   "reason": "unsupported_extension",
   "message": "Unsupported file extension: 'exe'. Supported: docx, pdf"
+}
+```
+```json
+{
+  "error": "invalid_upload",
+  "reason": "malformed_multipart",
+  "message": "Malformed multipart request body"
 }
 ```
 ```json
@@ -678,6 +673,22 @@ Upload, parse, and index a document **synchronously**. The response is returned 
 }
 ```
 
+`503 Service Unavailable` — a reindex is in flight and uploads are temporarily blocked:
+```json
+{
+  "error": "reindex_in_progress",
+  "message": "Reindex is running; uploads are temporarily blocked. Please retry shortly."
+}
+```
+
+`503 Service Unavailable` — the inline embedding call to Ollama failed during indexing; the upload was rolled back and the source file removed. Retry once Ollama is reachable again (verify via `/api/health/ready`):
+```json
+{
+  "error": "ollama_unavailable",
+  "message": "Embedding service (Ollama) is unavailable; upload cannot be indexed. Please retry shortly."
+}
+```
+
 **Execution model — synchronous (durable contract).** The endpoint blocks for the full parse/persist pipeline and returns the final outcome in one request/response. There is no `jobId`, no `status: "indexing"` polling, and no separate job status endpoint. If a future phase needs async upload it will introduce a **new endpoint**, not mutate the shape of `POST /api/admin/documents`. See [ADR 0001](adr/0001-synchronous-document-upload.md) for the full rationale.
 
 **Deployment note — pre-auth window.** Until Phase 4 introduces authentication (§11), `POST /api/admin/documents` and the other admin routes are **unprotected**. The only acceptable public-facing deployment mode is `MODE=client`, which exposes chat only and registers no admin routes. `MODE=full` and `MODE=admin` must be restricted to internal networks until auth lands. Application startup emits a `WARN` log line in unprotected modes. See [ADR 0005](adr/0005-auth-deferred-out-of-phase-2.md).
@@ -699,8 +710,30 @@ Delete document and all associated chunks/images. Also removes the source file f
 {"error": "Document not found"}
 ```
 
+`503 Service Unavailable` — a reindex is in flight and deletes are temporarily blocked:
+```json
+{
+  "error": "reindex_in_progress",
+  "message": "Reindex is running; deletes are temporarily blocked. Please retry shortly."
+}
+```
+
 #### POST /api/admin/reindex
-Reindex all documents.
+Clear every chunk's stored embedding and re-embed all chunks via Ollama. Fire-and-forget — the response returns immediately and the job runs in the background. While it runs, `POST /api/admin/documents` returns `503` (`reindex_in_progress`) and `POST /api/chat` returns `503` (`not_ready`).
+
+**Responses:**
+
+`202 Accepted` — job accepted:
+```json
+{"status": "started"}
+```
+
+`202 Accepted` — a reindex is already in flight (idempotent):
+```json
+{"status": "already_running"}
+```
+
+See [ADR 0006](adr/0006-queue-chat-dispatch-with-in-memory-bus.md) for the interaction between inline-upload-embedding and reindex.
 
 #### GET /api/admin/export
 Download knowledge base as ZIP.
@@ -790,11 +823,15 @@ Readiness check (all dependencies up).
     "chunks": 847
   },
   "queue": {
-    "status": "up",
-    "pending": 0
+    "status": "up"
+  },
+  "backfill": {
+    "status": "ready"
   }
 }
 ```
+
+Returns `503 Service Unavailable` with the same body shape whenever any of `ollama.status`, `queue.status`, or `backfill.status` is not `up`/`ready`. The `backfill.status` field is `"ready"` once the startup embedding backfill has completed, `"running"` while a backfill or reindex is in flight, `"idle"` before the job starts, and `"failed"` if the backfill terminated in an unrecoverable error (an operator must then trigger `POST /api/admin/reindex`).
 
 #### GET /api/stats
 System statistics.
@@ -1035,29 +1072,7 @@ Guidelines:
 
 ### 10.1 Artemis Integration
 
-```kotlin
-class QueueService(private val config: ArtemisConfig) {
-    
-    private val connectionFactory = ActiveMQConnectionFactory(config.brokerUrl)
-    private val connection = connectionFactory.createConnection()
-    private val session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE)
-    private val requestQueue = session.createQueue("aos.chat.requests")
-    private val responseQueue = session.createQueue("aos.chat.responses")
-    
-    suspend fun enqueue(request: ChatRequest): String {
-        val requestId = UUID.randomUUID().toString()
-        val producer = session.createProducer(requestQueue)
-        val message = session.createTextMessage(Json.encodeToString(request))
-        message.setStringProperty("requestId", requestId)
-        producer.send(message)
-        return requestId
-    }
-    
-    fun getPosition(requestId: String): Int {
-        // Query queue browser for position
-    }
-}
-```
+Only the request queue `aos.chat.requests` is used — response streaming goes through an in-process bus (see §10.3 and [ADR 0006](adr/0006-queue-chat-dispatch-with-in-memory-bus.md)). Each request is tagged with a `correlationId` set on `JMSCorrelationID`; the same id keys the `ChatResponseBus` channel used by the SSE handler. Producers create a short-lived `Session`/`MessageProducer` per `enqueue` (JMS sessions are not thread-safe); consumers use a dedicated `CLIENT_ACKNOWLEDGE` session with a manual receive loop rather than a `MessageListener`. `QueueService.getPosition(correlationId)` uses a `QueueBrowser` snapshot — the returned position may already be stale by the time the caller reads it; a value of `-1` means the message has already been consumed and the route clamps it to `0`. See `backend/src/main/kotlin/com/aos/chatbot/services/QueueService.kt` for the full implementation.
 
 ### 10.2 Queue Events (SSE)
 
@@ -1071,6 +1086,16 @@ sealed class QueueEvent {
     data class Error(val message: String) : QueueEvent()
 }
 ```
+
+### 10.3 Token Delivery Path
+
+The `aos.chat.responses` JMS queue shown conceptually in earlier drafts is **not** implemented. Only the initial `ChatRequest` travels through Artemis (`aos.chat.requests`), carrying a `correlationId` used for fair ordering across concurrent chat sessions.
+
+The consumer is a coroutine running inside the same JVM as the HTTP server. Once it dequeues a request, it runs the RAG pipeline (embed → search → LLM stream) and publishes each `QueueEvent` onto an in-memory bus keyed by `correlationId`. The SSE route handler subscribes to the same key and forwards events to the client. Tokens never traverse JMS, so per-token latency stays at microsecond range.
+
+A `Channel<QueueEvent>(capacity = Channel.UNLIMITED)` is used rather than a `SharedFlow` so emissions produced before the SSE route starts collecting are buffered, eliminating the subscribe-before-enqueue race.
+
+See [ADR 0006](adr/0006-queue-chat-dispatch-with-in-memory-bus.md) for the rationale, the consequences for deployment (SSE handler and consumer must share a JVM), and the known limitation that client disconnects do not currently cancel the in-flight Ollama HTTP call.
 
 ---
 
@@ -1180,6 +1205,11 @@ app {
         url = ${OLLAMA_URL}
         llmModel = ${OLLAMA_LLM_MODEL}
         embedModel = ${OLLAMA_EMBED_MODEL}
+    }
+    artemis {
+        brokerUrl = ${ARTEMIS_BROKER_URL}
+        user = ${?ARTEMIS_USER}
+        password = ${?ARTEMIS_PASSWORD}
     }
 }
 ```
@@ -1357,19 +1387,10 @@ find /backup -name "aos_*.db" -mtime +7 -delete
 
 ### 14.4 Model Warm-up
 
-On startup, send a dummy request to load models into memory:
-
-```kotlin
-// Application.kt
-fun Application.warmupOllama() {
-    launch {
-        log.info("Warming up Ollama models...")
-        embeddingService.embed("warmup")
-        llmService.generate("warmup", emptyList())
-        log.info("Ollama models loaded")
-    }
-}
-```
+On startup, `ModelWarmup.warmupAsync(scope)` fires one dummy embed and one dummy
+LLM call to load both models into Ollama's RAM before the first real request.
+Warmup is fire-and-forget and does NOT gate `/api/health/ready`; failures log at
+WARN and are swallowed. See `services/ModelWarmup.kt`.
 
 ---
 
@@ -1387,21 +1408,21 @@ fun Application.warmupOllama() {
 
 ### Phase 2: Document Processing (Week 3-4)
 
-- [ ] WordParser (Apache POI)
-- [ ] PdfParser (Apache PDFBox)
-- [ ] AosParser (troubleshooting, tables)
-- [ ] ChunkingService
-- [ ] Image extraction
-- [ ] Unit tests for parsers
+- [x] WordParser (Apache POI)
+- [x] PdfParser (Apache PDFBox)
+- [x] AosParser (troubleshooting, tables)
+- [x] ChunkingService
+- [x] Image extraction
+- [x] Unit tests for parsers
 
 ### Phase 3: RAG Pipeline (Week 5-6)
 
-- [ ] EmbeddingService (Ollama BGE-M3)
-- [ ] SearchService (in-memory)
-- [ ] LlmService (Ollama qwen2.5)
-- [ ] ChatService (orchestration)
-- [ ] SSE streaming
-- [ ] Queue integration (Artemis)
+- [x] EmbeddingService (Ollama BGE-M3)
+- [x] SearchService (in-memory)
+- [x] LlmService (Ollama qwen2.5)
+- [x] ChatService (orchestration)
+- [x] SSE streaming
+- [x] Queue integration (Artemis)
 
 ### Phase 4: Admin Panel (Week 7)
 
@@ -1439,7 +1460,7 @@ fun Application.warmupOllama() {
 | Feature | Description | Priority |
 |---------|-------------|----------|
 | **Vision LLM** | LLaVA/Qwen-VL for image understanding | High |
-| **Feedback** | 👍👎 on responses for quality tracking | Medium |
+| **Feedback** | 👍👎 on responses for quality tracking (implementation will key feedback on the `correlationId` already produced by the chat pipeline; no conversation storage is required for rating) | Medium |
 | **Chat History** | Persist conversations (optional) | Low |
 | **Keycloak** | SSO integration for some clients | Medium |
 | **Multi-language UI** | DE + EN interface | Low |

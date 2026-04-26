@@ -142,6 +142,18 @@ class DocumentRepositoryTest {
     }
 
     @Test
+    fun `count returns row count`() {
+        assertEquals(0L, repo.count())
+        repo.insert(sampleDocument(filename = "a.docx", fileHash = "h1"))
+        repo.insert(sampleDocument(filename = "b.docx", fileHash = "h2"))
+        assertEquals(2L, repo.count())
+        val doc = repo.insert(sampleDocument(filename = "c.docx", fileHash = "h3"))
+        assertEquals(3L, repo.count())
+        repo.delete(doc.id)
+        assertEquals(2L, repo.count())
+    }
+
+    @Test
     fun `delete cascades to images`() {
         val doc = repo.insert(sampleDocument())
         val imageRepo = ImageRepository(conn)

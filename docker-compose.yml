@@ -2,11 +2,21 @@ services:
   backend:
     build: ./backend
     container_name: aos-backend
+    # Production client-mode deployment: Ollama and Artemis are expected to
+    # be reachable at the URLs below (operators point them at the shared
+    # infrastructure on their target server — see ARCHITECTURE.md §13.2).
+    # Values can be overridden via `.env` (copy `.env.example` to `.env`).
     environment:
       - MODE=client
       - PORT=8080
       - DATABASE_PATH=/data/aos.db
       - DATA_PATH=/data
+      - OLLAMA_URL=${OLLAMA_URL:-http://ollama:11434}
+      - OLLAMA_LLM_MODEL=${OLLAMA_LLM_MODEL:-qwen2.5:7b-instruct-q4_K_M}
+      - OLLAMA_EMBED_MODEL=${OLLAMA_EMBED_MODEL:-bge-m3}
+      - ARTEMIS_BROKER_URL=${ARTEMIS_BROKER_URL:-tcp://artemis:61616}
+      - ARTEMIS_USER=${ARTEMIS_USER:-}
+      - ARTEMIS_PASSWORD=${ARTEMIS_PASSWORD:-}
     volumes:
       - aos-data:/data
     expose:

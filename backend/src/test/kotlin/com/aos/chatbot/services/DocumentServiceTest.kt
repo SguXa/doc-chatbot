@@ -14,6 +14,8 @@ import com.aos.chatbot.parsers.ParserFactory
 import com.aos.chatbot.parsers.UnreadableDocumentException
 import com.aos.chatbot.parsers.UnreadableReason
 import com.aos.chatbot.parsers.aos.AosParser
+import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.runBlocking
@@ -27,6 +29,7 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class DocumentServiceTest {
@@ -39,7 +42,12 @@ class DocumentServiceTest {
     private lateinit var parserFactory: ParserFactory
     private lateinit var aosParser: AosParser
     private lateinit var chunkingService: ChunkingService
+    private lateinit var embeddingService: EmbeddingService
+    private lateinit var searchService: SearchService
+    private lateinit var backfillJob: EmbeddingBackfillJob
     private lateinit var service: DocumentService
+
+    private fun fakeEmbedding(): FloatArray = FloatArray(8) { it.toFloat() }
 
     private val sampleContent = ParsedContent(
         textBlocks = listOf(
@@ -78,6 +86,13 @@ class DocumentServiceTest {
         parserFactory = mockk()
         aosParser = mockk()
         chunkingService = mockk()
+        embeddingService = mockk()
+        searchService = SearchService()
+        backfillJob = EmbeddingBackfillJob(
+            database = database,
+            embeddingService = embeddingService,
+            searchService = searchService
+        )
 
         // Default mock behavior: parser returns sampleContent, aosParser passes through, chunking passes through
         val mockParser = mockk<DocumentParser>()
@@ -85,8 +100,12 @@ class DocumentServiceTest {
         every { parserFactory.getParser(any()) } returns mockParser
         every { aosParser.process(any()) } answers { firstArg() }
         every { chunkingService.chunk(any()) } answers { firstArg() }
+        coEvery { embeddingService.embed(any()) } answers { fakeEmbedding() }
 
-        service = DocumentService(database, parserFactory, aosParser, chunkingService, documentsPath, imagesPath)
+        service = DocumentService(
+            database, parserFactory, aosParser, chunkingService,
+            embeddingService, searchService, backfillJob, documentsPath, imagesPath
+        )
     }
 
     @AfterEach
@@ -356,7 +375,7 @@ class DocumentServiceTest {
 
         val failService = DocumentService(
             database, parserFactory, aosParser, chunkingService,
-            documentsPath, unwritableImagesPath
+            embeddingService, searchService, backfillJob, documentsPath, unwritableImagesPath
         )
 
         assertFailsWith<Exception> {
@@ -424,6 +443,142 @@ class DocumentServiceTest {
         database.connect().use { conn ->
             assertEquals(0, DocumentRepository(conn).findAll().size)
         }
+    }
+
+    // --- Phase 3 Task 9: inline embeddings + SearchService sync ---
+
+    @Test
+    fun `upload embeds every chunk and persists non-null embedding blobs`() = runBlocking {
+        // A document with 3 text blocks should trigger 3 embed calls.
+        val multiBlockContent = ParsedContent(
+            textBlocks = listOf(
+                TextBlock(content = "First block.", type = "text", pageNumber = 1),
+                TextBlock(content = "Second block.", type = "text", pageNumber = 1),
+                TextBlock(content = "Third block.", type = "text", pageNumber = 2)
+            ),
+            images = emptyList()
+        )
+        val mockParser = mockk<DocumentParser>()
+        every { mockParser.parse(any()) } returns multiBlockContent
+        every { parserFactory.getParser(any()) } returns mockParser
+
+        val result = service.processDocument("multi.docx", "multi-bytes".toByteArray())
+        assertIs<UploadResult.Created>(result)
+
+        coVerify(exactly = 3) { embeddingService.embed(any()) }
+
+        database.connect().use { conn ->
+            val chunks = ChunkRepository(conn).findByDocumentId(result.document.id)
+            assertEquals(3, chunks.size)
+            chunks.forEach { chunk ->
+                assertNotNull(chunk.embedding, "chunk ${chunk.id} should have a persisted embedding")
+                assertEquals(8 * Float.SIZE_BYTES, chunk.embedding!!.size)
+            }
+        }
+        assertEquals(3, searchService.size())
+    }
+
+    @Test
+    fun `embedding failure rolls back document, source file, image directory, and search index`() = runBlocking {
+        val contentWithImages = sampleContentWithImages
+        val mockParser = mockk<DocumentParser>()
+        every { mockParser.parse(any()) } returns contentWithImages
+        every { parserFactory.getParser(any()) } returns mockParser
+
+        // The embedding step runs AFTER empty-content/parse and BEFORE persist.
+        // A failure here must abort the whole upload and leave no side effects.
+        coEvery { embeddingService.embed(any()) } throws OllamaUnavailableException("Ollama down")
+
+        val sizeBefore = searchService.size()
+
+        assertFailsWith<OllamaUnavailableException> {
+            service.processDocument("will-fail.docx", "bytes".toByteArray())
+        }
+
+        database.connect().use { conn ->
+            assertEquals(0, DocumentRepository(conn).findAll().size)
+            assertEquals(0L, ChunkRepository(conn).count())
+        }
+        val docsDir = Path.of(documentsPath)
+        if (Files.exists(docsDir)) {
+            val sources = Files.list(docsDir).filter { !it.toString().contains(".tmp.") }.count()
+            assertEquals(0L, sources)
+        }
+        val imgDir = Path.of(imagesPath)
+        // Either the image dir was never created, or if it was it contains no document subdirs
+        if (Files.exists(imgDir)) {
+            assertEquals(0L, Files.list(imgDir).count())
+        }
+        assertEquals(sizeBefore, searchService.size(), "search index must not grow on failure")
+    }
+
+    @Test
+    fun `embedding failure on third chunk rolls back cleanly with no partial state`() = runBlocking {
+        val threeBlocks = ParsedContent(
+            textBlocks = listOf(
+                TextBlock(content = "First.", type = "text"),
+                TextBlock(content = "Second.", type = "text"),
+                TextBlock(content = "Third.", type = "text")
+            ),
+            images = emptyList()
+        )
+        val mockParser = mockk<DocumentParser>()
+        every { mockParser.parse(any()) } returns threeBlocks
+        every { parserFactory.getParser(any()) } returns mockParser
+
+        var call = 0
+        coEvery { embeddingService.embed(any()) } answers {
+            call++
+            if (call == 3) throw OllamaUnavailableException("flaky third call")
+            fakeEmbedding()
+        }
+
+        assertFailsWith<OllamaUnavailableException> {
+            service.processDocument("flaky.docx", "bytes".toByteArray())
+        }
+
+        database.connect().use { conn ->
+            assertEquals(0, DocumentRepository(conn).findAll().size)
+            assertEquals(0L, ChunkRepository(conn).count())
+        }
+        assertEquals(0, searchService.size())
+    }
+
+    @Test
+    fun `search index grows after successful upload`() = runBlocking {
+        assertEquals(0, searchService.size())
+
+        val result = service.processDocument("sync.docx", "sync-bytes".toByteArray())
+        assertIs<UploadResult.Created>(result)
+
+        assertEquals(1, searchService.size())
+    }
+
+    @Test
+    fun `deleteDocument removes row and drops chunks from search index`() = runBlocking {
+        val created = service.processDocument("to-delete.docx", "delete-bytes".toByteArray())
+        assertIs<UploadResult.Created>(created)
+        assertEquals(1, searchService.size())
+
+        val deleted = service.deleteDocument(created.document.id)
+        assertNotNull(deleted)
+        assertEquals(created.document.id, deleted.id)
+        assertEquals(0, searchService.size())
+
+        database.connect().use { conn ->
+            assertNull(DocumentRepository(conn).findById(created.document.id))
+        }
+    }
+
+    @Test
+    fun `deleteDocument returns null for missing id and does not touch search index`() = runBlocking {
+        val created = service.processDocument("present.docx", "bytes".toByteArray())
+        assertIs<UploadResult.Created>(created)
+        val sizeBefore = searchService.size()
+
+        val deleted = service.deleteDocument(99999L)
+        assertNull(deleted)
+        assertEquals(sizeBefore, searchService.size())
     }
 
     // --- Helper ---

@@ -1,11 +1,15 @@
 package com.aos.chatbot.db
 
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.jsonPrimitive
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertDoesNotThrow
 import java.sql.Connection
 import java.sql.SQLException
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 class MigrationsTest {
@@ -403,6 +407,79 @@ class MigrationsTest {
             assertTrue(rs.next(), "Expected version 3 to be recorded")
             assertEquals(3, rs.getInt("version"))
             assertEquals("documents_file_hash_unique", rs.getString("name"))
+        }
+    }
+
+    // --- V004 tests: seed system_prompt ---
+
+    @Test
+    fun `V004 - system_prompt row is present and non-empty after migration`() {
+        val conn = inMemoryConnection()
+        conn.use {
+            Migrations(it).apply()
+
+            val rs = it.createStatement().executeQuery(
+                "SELECT value FROM config WHERE key = 'system_prompt'"
+            )
+            assertTrue(rs.next(), "Expected system_prompt row to exist")
+            val value = rs.getString("value")
+            assertNotNull(value, "system_prompt value should not be null")
+            assertTrue(value.isNotEmpty(), "system_prompt value should not be empty")
+        }
+    }
+
+    @Test
+    fun `V004 - system_prompt value is a JSON string containing the default prompt text`() {
+        val conn = inMemoryConnection()
+        conn.use {
+            Migrations(it).apply()
+
+            val rs = it.createStatement().executeQuery(
+                "SELECT value FROM config WHERE key = 'system_prompt'"
+            )
+            assertTrue(rs.next())
+            val raw = rs.getString("value")
+
+            val element = Json.parseToJsonElement(raw)
+            val primitive = element as? JsonPrimitive
+            assertNotNull(primitive, "Expected JSON primitive (string), got: $element")
+            assertTrue(primitive.isString, "Expected JSON string, got a non-string primitive")
+
+            val decoded = primitive.jsonPrimitive.content
+            assertTrue(
+                decoded.contains("AOS Documentation Assistant"),
+                "Decoded prompt should mention 'AOS Documentation Assistant', got: $decoded"
+            )
+        }
+    }
+
+    @Test
+    fun `V004 - schema_version records version 4`() {
+        val conn = inMemoryConnection()
+        conn.use {
+            Migrations(it).apply()
+
+            val rs = it.createStatement().executeQuery(
+                "SELECT version, name FROM schema_version WHERE version = 4"
+            )
+            assertTrue(rs.next(), "Expected version 4 to be recorded")
+            assertEquals(4, rs.getInt("version"))
+            assertEquals("seed_system_prompt", rs.getString("name"))
+        }
+    }
+
+    @Test
+    fun `V004 - running migrations twice does not insert a second system_prompt row`() {
+        val conn = inMemoryConnection()
+        conn.use {
+            Migrations(it).apply()
+            Migrations(it).apply()
+
+            val rs = it.createStatement().executeQuery(
+                "SELECT COUNT(*) FROM config WHERE key = 'system_prompt'"
+            )
+            rs.next()
+            assertEquals(1, rs.getInt(1), "system_prompt row should exist exactly once after a double apply()")
         }
     }
 }

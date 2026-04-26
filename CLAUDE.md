@@ -32,6 +32,9 @@ cd frontend && npm run dev
 # Tests
 cd backend && ./gradlew test
 cd frontend && npm test
+
+# Integration tests (require a local Ollama with bge-m3 + the configured LLM)
+cd backend && OLLAMA_TEST_URL=http://localhost:11434 ./gradlew integrationTest
 ```
 
 ## Coding Conventions
@@ -41,7 +44,7 @@ cd frontend && npm test
 - Named exports, no wildcard imports
 - Manual constructor dependency injection (no DI framework)
 - All API routes under `/api/`
-- SSE for streaming responses (chat, future phases)
+- SSE for streaming responses (chat pipeline uses `call.respondBytesWriter` with `ContentType.Text.EventStream`)
 - Repositories are operation-scoped — they take a `Connection` in the constructor and must not outlive it
 - Errors that cross the API boundary use stable string discriminators in the response body, not enum-typed unions
 
@@ -63,6 +66,8 @@ cd frontend && npm test
 - Frontend: Vitest + React Testing Library
 - Test files mirror source layout under `src/test/kotlin/...` (Kotlin) or live next to source as `*.test.tsx` (frontend)
 - Every functional increment ships with tests; tests must be green before moving to the next task
+- Ollama HTTP contracts are tested with WireMock; JMS flows use an embedded Artemis broker (`EmbeddedActiveMQ`, `vm://` transport)
+- Tests tagged `@Tag("integration")` are excluded from `./gradlew test` and run via `./gradlew integrationTest` against a real Ollama (gated on `OLLAMA_TEST_URL`)
 
 ## Repository Workflow
 
@@ -92,10 +97,10 @@ cd frontend && npm test
 
 ## Phase Discipline
 
-- **Auth is Phase 4 work.** Phase 2 and Phase 3 must not introduce JWT, login routes, `authenticate { ... }` blocks, or auth-related env vars (`JWT_SECRET`, `ADMIN_PASSWORD`). Admin routes during the pre-auth window are unprotected by design — see [ADR 0005](docs/adr/0005-auth-deferred-out-of-phase-2.md). The `MODE=client` deployment is the only acceptable public-facing mode until auth lands.
-- **Embeddings are Phase 3 work.** Phase 2 persists chunks with `embedding = NULL`. The V002 migration relaxes the V001 NOT NULL constraint to make this possible.
-- **Chat is Phase 3 work.** Phase 2 has no `ChatService`, no `LlmService`, no `SearchService`, no SSE chat route.
-- Do not introduce future-phase features speculatively. If a future phase needs something you are noticing right now, document it in ARCHITECTURE.md or an ADR — do not implement it.
+- **Auth is Phase 4 work.** Phases 2 and 3 did not introduce JWT, login routes, `authenticate { ... }` blocks, or auth-related env vars (`JWT_SECRET`, `ADMIN_PASSWORD`). Admin routes remain unprotected by design until Phase 4 — see [ADR 0005](docs/adr/0005-auth-deferred-out-of-phase-2.md). The `MODE=client` deployment is the only acceptable public-facing mode until auth lands.
+- **Embeddings are generated inline on upload (Phase 3).** `DocumentService` calls `EmbeddingService` before persisting chunks, so `embedding` is never NULL for new uploads. Any chunk still carrying `embedding = NULL` (Phase 2 legacy data) is handled by `EmbeddingBackfillJob` on startup.
+- **Chat pipeline is queue-dispatched with an in-memory token bus (Phase 3).** See [ADR 0006](docs/adr/0006-queue-chat-dispatch-with-in-memory-bus.md). `POST /api/chat` enqueues a `ChatRequest` onto `aos.chat.requests`; a single-JVM consumer (`ChatService`, `Semaphore(1)`) streams `QueueEvent`s back through `ChatResponseBus` to the SSE handler. Tokens never traverse JMS.
+- **Chat UI, feedback, export/import are Phase 4/5 work.** Do not introduce future-phase features speculatively. If a future phase needs something you are noticing right now, document it in ARCHITECTURE.md or an ADR — do not implement it.
 
 ## Important Operating Notes
 

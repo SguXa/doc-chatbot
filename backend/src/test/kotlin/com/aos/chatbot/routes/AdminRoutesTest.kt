@@ -6,14 +6,18 @@ import com.aos.chatbot.db.repositories.DocumentRepository
 import com.aos.chatbot.models.Document
 import com.aos.chatbot.parsers.UnreadableDocumentException
 import com.aos.chatbot.parsers.UnreadableReason
+import com.aos.chatbot.services.BackfillStatus
 import com.aos.chatbot.services.DocumentService
+import com.aos.chatbot.services.EmbeddingBackfillJob
 import com.aos.chatbot.services.EmptyDocumentException
 import com.aos.chatbot.services.InvalidUploadException
+import com.aos.chatbot.services.OllamaUnavailableException
 import com.aos.chatbot.services.UploadResult
 import io.ktor.client.request.delete
 import io.ktor.client.request.forms.formData
 import io.ktor.client.request.forms.submitFormWithBinaryData
 import io.ktor.client.request.get
+import io.ktor.client.request.post
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.Headers
 import io.ktor.http.HttpHeaders
@@ -24,8 +28,13 @@ import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.testApplication
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.int
@@ -43,6 +52,22 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class AdminRoutesTest {
+
+    private lateinit var mockBackfillJob: EmbeddingBackfillJob
+    private lateinit var testScope: CoroutineScope
+
+    @BeforeEach
+    fun setUpScope() {
+        mockBackfillJob = mockk(relaxed = true)
+        every { mockBackfillJob.isRunning() } returns false
+        every { mockBackfillJob.status() } returns BackfillStatus.Completed(embedded = 0, skipped = 0)
+        testScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    }
+
+    @AfterEach
+    fun tearDownScope() {
+        testScope.cancel()
+    }
 
     private val sampleDocument = Document(
         id = 1,
@@ -72,7 +97,7 @@ class AdminRoutesTest {
 
         application {
             install(ContentNegotiation) { json() }
-            routing { adminRoutes(mockService, mockDatabase) }
+            routing { adminRoutes(mockService, mockDatabase, mockBackfillJob, testScope) }
         }
 
         val response = client.submitFormWithBinaryData(
@@ -100,7 +125,7 @@ class AdminRoutesTest {
 
         application {
             install(ContentNegotiation) { json() }
-            routing { adminRoutes(mockService, mockDatabase) }
+            routing { adminRoutes(mockService, mockDatabase, mockBackfillJob, testScope) }
         }
 
         val response = client.submitFormWithBinaryData(
@@ -127,7 +152,7 @@ class AdminRoutesTest {
 
         application {
             install(ContentNegotiation) { json() }
-            routing { adminRoutes(mockService, mockDatabase) }
+            routing { adminRoutes(mockService, mockDatabase, mockBackfillJob, testScope) }
         }
 
         val response = client.submitFormWithBinaryData(
@@ -151,7 +176,7 @@ class AdminRoutesTest {
 
         application {
             install(ContentNegotiation) { json() }
-            routing { adminRoutes(mockService, mockDatabase) }
+            routing { adminRoutes(mockService, mockDatabase, mockBackfillJob, testScope) }
         }
 
         val response = client.submitFormWithBinaryData(
@@ -175,7 +200,7 @@ class AdminRoutesTest {
 
         application {
             install(ContentNegotiation) { json() }
-            routing { adminRoutes(mockService, mockDatabase) }
+            routing { adminRoutes(mockService, mockDatabase, mockBackfillJob, testScope) }
         }
 
         val response = client.submitFormWithBinaryData(
@@ -199,7 +224,7 @@ class AdminRoutesTest {
 
         application {
             install(ContentNegotiation) { json() }
-            routing { adminRoutes(mockService, mockDatabase) }
+            routing { adminRoutes(mockService, mockDatabase, mockBackfillJob, testScope) }
         }
 
         val response = client.submitFormWithBinaryData(
@@ -229,7 +254,7 @@ class AdminRoutesTest {
 
         application {
             install(ContentNegotiation) { json() }
-            routing { adminRoutes(mockService, mockDatabase) }
+            routing { adminRoutes(mockService, mockDatabase, mockBackfillJob, testScope) }
         }
 
         val response = client.submitFormWithBinaryData(
@@ -244,6 +269,29 @@ class AdminRoutesTest {
     }
 
     @Test
+    fun `POST documents returns 503 on OllamaUnavailableException during inline embedding`() = testApplication {
+        environment { config = io.ktor.server.config.MapApplicationConfig() }
+        val mockService = mockk<DocumentService>()
+        val mockDatabase = mockk<Database>()
+        coEvery { mockService.processDocument(any(), any()) } throws
+            OllamaUnavailableException("Ollama unreachable for embeddings")
+
+        application {
+            install(ContentNegotiation) { json() }
+            routing { adminRoutes(mockService, mockDatabase, mockBackfillJob, testScope) }
+        }
+
+        val response = client.submitFormWithBinaryData(
+            url = "/api/admin/documents",
+            formData = createMultipartData("test.docx", "content".toByteArray())
+        )
+
+        assertEquals(HttpStatusCode.ServiceUnavailable, response.status)
+        val body = Json.decodeFromString<JsonObject>(response.bodyAsText())
+        assertEquals("ollama_unavailable", body["error"]?.jsonPrimitive?.content)
+    }
+
+    @Test
     fun `POST documents returns 400 on EmptyDocumentException`() = testApplication {
         environment { config = io.ktor.server.config.MapApplicationConfig() }
         val mockService = mockk<DocumentService>()
@@ -252,7 +300,7 @@ class AdminRoutesTest {
 
         application {
             install(ContentNegotiation) { json() }
-            routing { adminRoutes(mockService, mockDatabase) }
+            routing { adminRoutes(mockService, mockDatabase, mockBackfillJob, testScope) }
         }
 
         val response = client.submitFormWithBinaryData(
@@ -284,7 +332,7 @@ class AdminRoutesTest {
 
                 application {
                     install(ContentNegotiation) { json() }
-                    routing { adminRoutes(mockService, realDb) }
+                    routing { adminRoutes(mockService, realDb, mockBackfillJob, testScope) }
                 }
 
                 val response = client.get("/api/admin/documents")
@@ -304,59 +352,39 @@ class AdminRoutesTest {
     }
 
     @Test
-    fun `DELETE documents returns 204 on success`() {
-        val dbFile = Files.createTempFile("admin-test-", ".db")
-        try {
-            val realDb = Database(dbFile.toString())
-            var insertedId: Long
-            realDb.connect().use { conn -> Migrations(conn).apply() }
-            realDb.connect().use { conn ->
-                val repo = DocumentRepository(conn)
-                val inserted = repo.insert(Document(filename = "test.docx", fileType = "docx", fileSize = 100, fileHash = "hash1"))
-                insertedId = inserted.id
-            }
+    fun `DELETE documents returns 204 on success`() = testApplication {
+        environment { config = io.ktor.server.config.MapApplicationConfig() }
+        val mockService = mockk<DocumentService>()
+        val mockDatabase = mockk<Database>()
+        val deleted = sampleDocument.copy(id = 42)
+        coEvery { mockService.deleteDocument(42) } returns deleted
 
-            testApplication {
-                environment { config = io.ktor.server.config.MapApplicationConfig() }
-                val mockService = mockk<DocumentService>()
-
-                application {
-                    install(ContentNegotiation) { json() }
-                    routing { adminRoutes(mockService, realDb) }
-                }
-
-                val response = client.delete("/api/admin/documents/$insertedId")
-                assertEquals(HttpStatusCode.NoContent, response.status)
-            }
-        } finally {
-            Files.deleteIfExists(dbFile)
+        application {
+            install(ContentNegotiation) { json() }
+            routing { adminRoutes(mockService, mockDatabase, mockBackfillJob, testScope) }
         }
+
+        val response = client.delete("/api/admin/documents/42")
+        assertEquals(HttpStatusCode.NoContent, response.status)
+        coVerify(exactly = 1) { mockService.deleteDocument(42) }
     }
 
     @Test
-    fun `DELETE documents returns 404 when not found`() {
-        val dbFile = Files.createTempFile("admin-test-", ".db")
-        try {
-            val realDb = Database(dbFile.toString())
-            realDb.connect().use { conn -> Migrations(conn).apply() }
+    fun `DELETE documents returns 404 when not found`() = testApplication {
+        environment { config = io.ktor.server.config.MapApplicationConfig() }
+        val mockService = mockk<DocumentService>()
+        val mockDatabase = mockk<Database>()
+        coEvery { mockService.deleteDocument(999) } returns null
 
-            testApplication {
-                environment { config = io.ktor.server.config.MapApplicationConfig() }
-                val mockService = mockk<DocumentService>()
-
-                application {
-                    install(ContentNegotiation) { json() }
-                    routing { adminRoutes(mockService, realDb) }
-                }
-
-                val response = client.delete("/api/admin/documents/999")
-                assertEquals(HttpStatusCode.NotFound, response.status)
-                val body = Json.decodeFromString<JsonObject>(response.bodyAsText())
-                assertEquals("Document not found", body["error"]?.jsonPrimitive?.content)
-            }
-        } finally {
-            Files.deleteIfExists(dbFile)
+        application {
+            install(ContentNegotiation) { json() }
+            routing { adminRoutes(mockService, mockDatabase, mockBackfillJob, testScope) }
         }
+
+        val response = client.delete("/api/admin/documents/999")
+        assertEquals(HttpStatusCode.NotFound, response.status)
+        val body = Json.decodeFromString<JsonObject>(response.bodyAsText())
+        assertEquals("Document not found", body["error"]?.jsonPrimitive?.content)
     }
 
     @Test
@@ -372,7 +400,21 @@ class AdminRoutesTest {
                 every { mockDatabase.connect() } returns mockConnection
                 every { mockConnection.isValid(any()) } returns true
                 every { mockConnection.close() } returns Unit
-                healthRoutes(mockDatabase)
+                val ollamaHttpClient = io.ktor.client.HttpClient(io.ktor.client.engine.cio.CIO)
+                val ollamaConfig = com.aos.chatbot.config.OllamaConfig("http://localhost:0", "q", "e")
+                val mockQueueService = mockk<com.aos.chatbot.services.QueueService>()
+                every { mockQueueService.isConnected() } returns false
+                val mockBackfillJob = mockk<com.aos.chatbot.services.EmbeddingBackfillJob>()
+                every { mockBackfillJob.status() } returns com.aos.chatbot.services.BackfillStatus.Idle
+                every { mockBackfillJob.isRunning() } returns false
+                healthRoutes(
+                    database = mockDatabase,
+                    databasePath = "/tmp/not-used.db",
+                    ollamaClient = ollamaHttpClient,
+                    ollamaConfig = ollamaConfig,
+                    queueService = mockQueueService,
+                    backfillJob = mockBackfillJob
+                )
             }
         }
 
@@ -396,7 +438,7 @@ class AdminRoutesTest {
 
         application {
             install(ContentNegotiation) { json() }
-            routing { adminRoutes(mockService, mockDatabase) }
+            routing { adminRoutes(mockService, mockDatabase, mockBackfillJob, testScope) }
         }
 
         client.submitFormWithBinaryData(
@@ -426,7 +468,7 @@ class AdminRoutesTest {
 
                 application {
                     install(ContentNegotiation) { json() }
-                    routing { adminRoutes(mockService, realDb) }
+                    routing { adminRoutes(mockService, realDb, mockBackfillJob, testScope) }
                 }
 
                 val response = client.get("/api/admin/documents")
@@ -458,7 +500,7 @@ class AdminRoutesTest {
 
         application {
             install(ContentNegotiation) { json() }
-            routing { adminRoutes(mockService, mockDatabase) }
+            routing { adminRoutes(mockService, mockDatabase, mockBackfillJob, testScope) }
         }
 
         val response = client.submitFormWithBinaryData(
@@ -469,5 +511,172 @@ class AdminRoutesTest {
         val bodyText = response.bodyAsText()
         assertFalse(bodyText.contains("org.apache"), "Response should not leak Apache internals: $bodyText")
         assertFalse(bodyText.contains("Exception"), "Response should not leak exception classes: $bodyText")
+    }
+
+    @Test
+    fun `DELETE documents returns 503 when reindex is running`() = testApplication {
+        environment { config = io.ktor.server.config.MapApplicationConfig() }
+        val mockService = mockk<DocumentService>()
+        val mockDatabase = mockk<Database>()
+        every { mockBackfillJob.isRunning() } returns true
+
+        application {
+            install(ContentNegotiation) { json() }
+            routing { adminRoutes(mockService, mockDatabase, mockBackfillJob, testScope) }
+        }
+
+        val response = client.delete("/api/admin/documents/42")
+
+        assertEquals(HttpStatusCode.ServiceUnavailable, response.status)
+        val body = Json.decodeFromString<JsonObject>(response.bodyAsText())
+        assertEquals("reindex_in_progress", body["error"]?.jsonPrimitive?.content)
+        coVerify(exactly = 0) { mockService.deleteDocument(any()) }
+    }
+
+    @Test
+    fun `POST documents returns 503 when reindex is running`() = testApplication {
+        environment { config = io.ktor.server.config.MapApplicationConfig() }
+        val mockService = mockk<DocumentService>()
+        val mockDatabase = mockk<Database>()
+        every { mockBackfillJob.isRunning() } returns true
+
+        application {
+            install(ContentNegotiation) { json() }
+            routing { adminRoutes(mockService, mockDatabase, mockBackfillJob, testScope) }
+        }
+
+        val response = client.submitFormWithBinaryData(
+            url = "/api/admin/documents",
+            formData = createMultipartData("test.docx", "content".toByteArray())
+        )
+
+        assertEquals(HttpStatusCode.ServiceUnavailable, response.status)
+        val body = Json.decodeFromString<JsonObject>(response.bodyAsText())
+        assertEquals("reindex_in_progress", body["error"]?.jsonPrimitive?.content)
+        coVerify(exactly = 0) { mockService.processDocument(any(), any()) }
+    }
+
+    @Test
+    fun `POST reindex returns 202 started on clean state and triggers clearAndReindex`() = testApplication {
+        environment { config = io.ktor.server.config.MapApplicationConfig() }
+        val mockService = mockk<DocumentService>()
+        val mockDatabase = mockk<Database>()
+        every { mockBackfillJob.isRunning() } returns false
+        coEvery { mockBackfillJob.clearAndReindex() } returns Unit
+
+        application {
+            install(ContentNegotiation) { json() }
+            routing { adminRoutes(mockService, mockDatabase, mockBackfillJob, testScope) }
+        }
+
+        val response = client.post("/api/admin/reindex")
+
+        assertEquals(HttpStatusCode.Accepted, response.status)
+        val body = Json.decodeFromString<JsonObject>(response.bodyAsText())
+        assertEquals("started", body["status"]?.jsonPrimitive?.content)
+        coVerify(timeout = 2_000) { mockBackfillJob.clearAndReindex() }
+    }
+
+    @Test
+    fun `POST reindex returns 202 already_running when a reindex is already in flight`() = testApplication {
+        environment { config = io.ktor.server.config.MapApplicationConfig() }
+        val mockService = mockk<DocumentService>()
+        val mockDatabase = mockk<Database>()
+        every { mockBackfillJob.isRunning() } returns true
+
+        application {
+            install(ContentNegotiation) { json() }
+            routing { adminRoutes(mockService, mockDatabase, mockBackfillJob, testScope) }
+        }
+
+        val response = client.post("/api/admin/reindex")
+
+        assertEquals(HttpStatusCode.Accepted, response.status)
+        val body = Json.decodeFromString<JsonObject>(response.bodyAsText())
+        assertEquals("already_running", body["status"]?.jsonPrimitive?.content)
+        coVerify(exactly = 0) { mockBackfillJob.clearAndReindex() }
+    }
+
+    @Test
+    fun `POST reindex refuses while startup backfill has not reached Completed`() = testApplication {
+        environment { config = io.ktor.server.config.MapApplicationConfig() }
+        val mockService = mockk<DocumentService>()
+        val mockDatabase = mockk<Database>()
+        // Startup backfill still embedding chunks: isRunning() (reindex-only flag) is
+        // false, but status() has not yet transitioned to Completed. The reindex
+        // path MUST refuse to launch, otherwise it races the backfill's per-chunk
+        // embed writes and can NULL freshly embedded rows.
+        every { mockBackfillJob.isRunning() } returns false
+        every { mockBackfillJob.status() } returns BackfillStatus.Running(processed = 3, total = 10)
+
+        application {
+            install(ContentNegotiation) { json() }
+            routing { adminRoutes(mockService, mockDatabase, mockBackfillJob, testScope) }
+        }
+
+        val response = client.post("/api/admin/reindex")
+
+        assertEquals(HttpStatusCode.Accepted, response.status)
+        val body = Json.decodeFromString<JsonObject>(response.bodyAsText())
+        assertEquals("already_running", body["status"]?.jsonPrimitive?.content)
+        coVerify(exactly = 0) { mockBackfillJob.clearAndReindex() }
+    }
+
+    @Test
+    fun `POST reindex recovers from Failed backfill state`() = testApplication {
+        environment { config = io.ktor.server.config.MapApplicationConfig() }
+        val mockService = mockk<DocumentService>()
+        val mockDatabase = mockk<Database>()
+        // Failed is terminal. /api/chat's BackfillFailedResponse tells operators to
+        // recover via this route, so it must be eligible (not lumped with Idle/Running).
+        every { mockBackfillJob.isRunning() } returns false
+        every { mockBackfillJob.status() } returns BackfillStatus.Failed("boom")
+        coEvery { mockBackfillJob.clearAndReindex() } returns Unit
+
+        application {
+            install(ContentNegotiation) { json() }
+            routing { adminRoutes(mockService, mockDatabase, mockBackfillJob, testScope) }
+        }
+
+        val response = client.post("/api/admin/reindex")
+
+        assertEquals(HttpStatusCode.Accepted, response.status)
+        val body = Json.decodeFromString<JsonObject>(response.bodyAsText())
+        assertEquals("started", body["status"]?.jsonPrimitive?.content)
+        coVerify(timeout = 2_000) { mockBackfillJob.clearAndReindex() }
+    }
+
+    @Test
+    fun `POST reindex is NOT registered in CLIENT mode`() = testApplication {
+        environment { config = io.ktor.server.config.MapApplicationConfig() }
+
+        application {
+            install(ContentNegotiation) { json() }
+            routing {
+                val mockDatabase = mockk<Database>()
+                val mockConnection = mockk<Connection>()
+                every { mockDatabase.connect() } returns mockConnection
+                every { mockConnection.isValid(any()) } returns true
+                every { mockConnection.close() } returns Unit
+                val ollamaHttpClient = io.ktor.client.HttpClient(io.ktor.client.engine.cio.CIO)
+                val ollamaConfig = com.aos.chatbot.config.OllamaConfig("http://localhost:0", "q", "e")
+                val mockQueueService = mockk<com.aos.chatbot.services.QueueService>()
+                every { mockQueueService.isConnected() } returns false
+                val mockBackfillJob = mockk<com.aos.chatbot.services.EmbeddingBackfillJob>()
+                every { mockBackfillJob.status() } returns com.aos.chatbot.services.BackfillStatus.Idle
+                every { mockBackfillJob.isRunning() } returns false
+                healthRoutes(
+                    database = mockDatabase,
+                    databasePath = "/tmp/not-used.db",
+                    ollamaClient = ollamaHttpClient,
+                    ollamaConfig = ollamaConfig,
+                    queueService = mockQueueService,
+                    backfillJob = mockBackfillJob
+                )
+            }
+        }
+
+        val response = client.post("/api/admin/reindex")
+        assertEquals(HttpStatusCode.NotFound, response.status)
     }
 }

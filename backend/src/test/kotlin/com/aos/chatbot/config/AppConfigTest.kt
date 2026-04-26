@@ -25,7 +25,13 @@ class AppConfigTest {
             "app.database.path" to ":memory:",
             "app.data.path" to "./data",
             "app.paths.documents" to "./data/documents",
-            "app.paths.images" to "./data/images"
+            "app.paths.images" to "./data/images",
+            "app.ollama.url" to "http://ollama:11434",
+            "app.ollama.llmModel" to "qwen2.5:7b-instruct-q4_K_M",
+            "app.ollama.embedModel" to "bge-m3",
+            "app.artemis.brokerUrl" to "tcp://artemis:61616",
+            "app.artemis.user" to "",
+            "app.artemis.password" to ""
         )
         val merged = defaults + overrides.toMap()
         return buildEnvironment(*merged.map { it.key to it.value }.toTypedArray())
@@ -113,5 +119,91 @@ class AppConfigTest {
         ))
         assertEquals("/vol1/docs", appConfig.documentsPath)
         assertEquals("/vol2/imgs", appConfig.imagesPath)
+    }
+
+    @Test
+    fun `ollama defaults resolve`() {
+        val appConfig = AppConfig.from(defaultEnv())
+        assertEquals("http://ollama:11434", appConfig.ollama.url)
+        assertEquals("qwen2.5:7b-instruct-q4_K_M", appConfig.ollama.llmModel)
+        assertEquals("bge-m3", appConfig.ollama.embedModel)
+    }
+
+    @Test
+    fun `artemis defaults resolve`() {
+        val appConfig = AppConfig.from(defaultEnv())
+        assertEquals("tcp://artemis:61616", appConfig.artemis.brokerUrl)
+        assertEquals("", appConfig.artemis.user)
+        assertEquals("", appConfig.artemis.password)
+    }
+
+    @Test
+    fun `OLLAMA_URL overrides ollama url independently`() {
+        val appConfig = AppConfig.from(defaultEnv(
+            "app.ollama.url" to "http://custom-ollama:9999"
+        ))
+        assertEquals("http://custom-ollama:9999", appConfig.ollama.url)
+        assertEquals("qwen2.5:7b-instruct-q4_K_M", appConfig.ollama.llmModel)
+        assertEquals("bge-m3", appConfig.ollama.embedModel)
+    }
+
+    @Test
+    fun `OLLAMA_LLM_MODEL overrides llm model independently`() {
+        val appConfig = AppConfig.from(defaultEnv(
+            "app.ollama.llmModel" to "llama3:8b"
+        ))
+        assertEquals("http://ollama:11434", appConfig.ollama.url)
+        assertEquals("llama3:8b", appConfig.ollama.llmModel)
+        assertEquals("bge-m3", appConfig.ollama.embedModel)
+    }
+
+    @Test
+    fun `OLLAMA_EMBED_MODEL overrides embed model independently`() {
+        val appConfig = AppConfig.from(defaultEnv(
+            "app.ollama.embedModel" to "nomic-embed-text"
+        ))
+        assertEquals("http://ollama:11434", appConfig.ollama.url)
+        assertEquals("qwen2.5:7b-instruct-q4_K_M", appConfig.ollama.llmModel)
+        assertEquals("nomic-embed-text", appConfig.ollama.embedModel)
+    }
+
+    @Test
+    fun `ARTEMIS_BROKER_URL overrides broker url independently`() {
+        val appConfig = AppConfig.from(defaultEnv(
+            "app.artemis.brokerUrl" to "tcp://custom-broker:61616"
+        ))
+        assertEquals("tcp://custom-broker:61616", appConfig.artemis.brokerUrl)
+        assertEquals("", appConfig.artemis.user)
+        assertEquals("", appConfig.artemis.password)
+    }
+
+    @Test
+    fun `ARTEMIS_USER overrides user independently`() {
+        val appConfig = AppConfig.from(defaultEnv(
+            "app.artemis.user" to "admin"
+        ))
+        assertEquals("tcp://artemis:61616", appConfig.artemis.brokerUrl)
+        assertEquals("admin", appConfig.artemis.user)
+        assertEquals("", appConfig.artemis.password)
+    }
+
+    @Test
+    fun `ARTEMIS_PASSWORD overrides password independently`() {
+        val appConfig = AppConfig.from(defaultEnv(
+            "app.artemis.password" to "s3cret"
+        ))
+        assertEquals("tcp://artemis:61616", appConfig.artemis.brokerUrl)
+        assertEquals("", appConfig.artemis.user)
+        assertEquals("s3cret", appConfig.artemis.password)
+    }
+
+    @Test
+    fun `empty ARTEMIS_USER and ARTEMIS_PASSWORD produce empty strings not nulls`() {
+        val appConfig = AppConfig.from(defaultEnv(
+            "app.artemis.user" to "",
+            "app.artemis.password" to ""
+        ))
+        assertEquals("", appConfig.artemis.user)
+        assertEquals("", appConfig.artemis.password)
     }
 }

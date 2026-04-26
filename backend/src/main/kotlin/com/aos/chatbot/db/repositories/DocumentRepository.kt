@@ -84,6 +84,14 @@ class DocumentRepository(private val conn: Connection) {
         }
     }
 
+    fun count(): Long {
+        conn.createStatement().use { stmt ->
+            val rs = stmt.executeQuery("SELECT COUNT(*) FROM documents")
+            rs.next()
+            return rs.getLong(1)
+        }
+    }
+
     private fun mapRow(rs: java.sql.ResultSet): Document {
         return Document(
             id = rs.getLong("id"),

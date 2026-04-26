@@ -132,6 +132,16 @@ class ImageRepositoryTest {
     }
 
     @Test
+    fun `count returns row count`() {
+        assertEquals(0L, repo.count())
+        repo.insert(ExtractedImage(documentId = documentId, filename = "a.png", path = "/a"))
+        repo.insert(ExtractedImage(documentId = documentId, filename = "b.png", path = "/b"))
+        assertEquals(2L, repo.count())
+        repo.deleteByDocumentId(documentId)
+        assertEquals(0L, repo.count())
+    }
+
+    @Test
     fun `FK constraint violation for non-existent document_id`() {
         assertFailsWith<SQLException> {
             repo.insert(

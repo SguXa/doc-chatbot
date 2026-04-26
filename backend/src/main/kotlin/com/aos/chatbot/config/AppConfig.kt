@@ -17,6 +17,23 @@ enum class AppMode {
     }
 }
 
+data class OllamaConfig(
+    val url: String,
+    val llmModel: String,
+    val embedModel: String
+)
+
+data class ArtemisConfig(
+    val brokerUrl: String,
+    val user: String,
+    val password: String
+) {
+    // Mask the password in the auto-generated toString so accidental logging
+    // of the config (e.g., in error traces) does not leak broker credentials.
+    override fun toString(): String =
+        "ArtemisConfig(brokerUrl=$brokerUrl, user=$user, password=***)"
+}
+
 data class AppConfig(
     val mode: AppMode,
     val port: Int,
@@ -24,7 +41,9 @@ data class AppConfig(
     val databasePath: String,
     val dataPath: String,
     val documentsPath: String,
-    val imagesPath: String
+    val imagesPath: String,
+    val ollama: OllamaConfig,
+    val artemis: ArtemisConfig
 ) {
     companion object {
         fun from(environment: ApplicationEnvironment): AppConfig {
@@ -37,7 +56,17 @@ data class AppConfig(
                 databasePath = config.property("app.database.path").getString(),
                 dataPath = config.property("app.data.path").getString(),
                 documentsPath = config.property("app.paths.documents").getString(),
-                imagesPath = config.property("app.paths.images").getString()
+                imagesPath = config.property("app.paths.images").getString(),
+                ollama = OllamaConfig(
+                    url = config.property("app.ollama.url").getString(),
+                    llmModel = config.property("app.ollama.llmModel").getString(),
+                    embedModel = config.property("app.ollama.embedModel").getString()
+                ),
+                artemis = ArtemisConfig(
+                    brokerUrl = config.property("app.artemis.brokerUrl").getString(),
+                    user = config.property("app.artemis.user").getString(),
+                    password = config.property("app.artemis.password").getString()
+                )
             )
         }
     }

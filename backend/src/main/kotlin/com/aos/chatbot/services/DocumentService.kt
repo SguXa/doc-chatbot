@@ -1,6 +1,7 @@
 package com.aos.chatbot.services
 
 import com.aos.chatbot.db.Database
+import com.aos.chatbot.db.embeddingToBytes
 import com.aos.chatbot.db.repositories.ChunkRepository
 import com.aos.chatbot.db.repositories.DocumentRepository
 import com.aos.chatbot.db.repositories.ImageRepository
@@ -16,7 +17,6 @@ import com.aos.chatbot.parsers.aos.AosParser
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.slf4j.LoggerFactory
-import java.io.File
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption
@@ -30,6 +30,9 @@ class DocumentService(
     private val parserFactory: ParserFactory,
     private val aosParser: AosParser,
     private val chunkingService: ChunkingService,
+    private val embeddingService: EmbeddingService,
+    private val searchService: SearchService,
+    private val backfillJob: EmbeddingBackfillJob,
     private val documentsPath: String,
     private val imagesPath: String
 ) {
@@ -126,124 +129,178 @@ class DocumentService(
                 throw EmptyDocumentException()
             }
 
-            // Image linkage validation
-            try {
-                validateImageLinkage(chunkedBlocks, processed.images)
-            } catch (e: Exception) {
-                if (ownsSourceFile) runCatching { Files.deleteIfExists(finalPath) }
-                throw e
-            }
-
-            // Persist phase
-            val document = Document(
-                filename = trimmedFilename,
-                fileType = extension,
-                fileSize = bytes.size.toLong(),
-                fileHash = hash
-            )
-
-            var documentId: Long? = null
-            var conn: Connection? = null
-            var committed = false
-            try {
-                conn = database.connect()
-                conn.autoCommit = false
-
-                val docRepo = DocumentRepository(conn)
-                val inserted: Document
+            // Embedding + persist phase runs under the reindex/upload mutex so
+            // a concurrent reindex cannot clear embeddings between embed and
+            // commit. Upload failures inside the lock still propagate out; the
+            // mutex is released by withReindexLock on any exit path.
+            backfillJob.withReindexLock {
+                val embeddings: List<ByteArray>
                 try {
-                    inserted = docRepo.insert(document)
-                } catch (e: SQLException) {
-                    if (e.message?.contains("UNIQUE constraint failed") == true) {
-                        conn.rollback()
-                        conn.close()
-                        conn = null
-                        // Do NOT delete finalPath here — the winning thread's DB row
-                        // references this same hash-named file with identical content.
-                        // Race-condition: another thread inserted the same hash
-                        database.connect().use { lookupConn ->
-                            val existing = DocumentRepository(lookupConn).findByHash(hash)
-                                ?: throw IllegalStateException("Race duplicate detected but row not found by hash")
-                            return@withContext UploadResult.Duplicate(existing)
-                        }
+                    embeddings = chunkedBlocks.map { block ->
+                        embeddingToBytes(embeddingService.embed(block.content))
                     }
+                } catch (e: Exception) {
+                    if (ownsSourceFile) runCatching { Files.deleteIfExists(finalPath) }
                     throw e
                 }
-                documentId = inserted.id
 
-                // Save images BEFORE chunks
-                val imageExtractor = ImageExtractor(imagesPath, ImageRepository(conn))
-                imageExtractor.saveImages(documentId, processed.images)
-
-                // Insert chunks
-                val chunks = chunkedBlocks.map { block ->
-                    Chunk(
-                        documentId = documentId,
-                        content = block.content,
-                        contentType = block.type,
-                        pageNumber = block.pageNumber,
-                        sectionId = block.sectionId,
-                        heading = block.heading,
-                        imageRefs = block.imageRefs
-                    )
-                }
-                ChunkRepository(conn).insertBatch(chunks)
-
-                // Update counts and indexedAt
-                docRepo.updateAfterIndexing(documentId, chunks.size, processed.images.size)
-
-                conn.commit()
-                committed = true
-
-                // If a racing uploader that owned the file deleted it after
-                // a transient error, restore the source from the original
-                // bytes (identical content — same hash).
-                if (!ownsSourceFile && !Files.exists(finalPath)) {
-                    try {
-                        Files.write(finalPath, bytes)
-                    } catch (repairEx: Exception) {
-                        logger.warn("Failed to restore source file {} after commit — document {} may reference a missing file", finalPath, documentId, repairEx)
-                    }
-                }
-
-                // Re-read committed state
-                val finalDoc = docRepo.findById(documentId)
-                    ?: throw IllegalStateException("Document $documentId missing after successful commit")
-                conn.close()
-                conn = null
-
-                UploadResult.Created(finalDoc)
-            } catch (e: Exception) {
-                // Rollback / compensation — only clean up if transaction was NOT committed
-                if (!committed) {
-                    try {
-                        conn?.rollback()
-                    } catch (_: Exception) {
-                    }
-
-                    // Delete source file only if this request placed it
+                // Image linkage validation
+                try {
+                    validateImageLinkage(chunkedBlocks, processed.images)
+                } catch (e: Exception) {
                     if (ownsSourceFile) runCatching { Files.deleteIfExists(finalPath) }
+                    throw e
+                }
 
-                    // Delete image directory if it was created
-                    if (documentId != null) {
-                        val imageDir = Path.of(imagesPath, documentId.toString())
-                        if (Files.exists(imageDir)) {
-                            runCatching {
-                                Files.walk(imageDir).use { stream ->
-                                    stream.sorted(Comparator.reverseOrder())
-                                        .forEach { Files.deleteIfExists(it) }
+                // Persist phase
+                val document = Document(
+                    filename = trimmedFilename,
+                    fileType = extension,
+                    fileSize = bytes.size.toLong(),
+                    fileHash = hash
+                )
+
+                var documentId: Long? = null
+                var conn: Connection? = null
+                var committed = false
+                try {
+                    conn = database.connect()
+                    conn.autoCommit = false
+
+                    val docRepo = DocumentRepository(conn)
+                    val inserted: Document
+                    try {
+                        inserted = docRepo.insert(document)
+                    } catch (e: SQLException) {
+                        if (e.message?.contains("UNIQUE constraint failed") == true) {
+                            conn.rollback()
+                            conn.close()
+                            conn = null
+                            // Do NOT delete finalPath here — the winning thread's DB row
+                            // references this same hash-named file with identical content.
+                            // Race-condition: another thread inserted the same hash
+                            val dup = database.connect().use { lookupConn ->
+                                DocumentRepository(lookupConn).findByHash(hash)
+                                    ?: throw IllegalStateException("Race duplicate detected but row not found by hash")
+                            }
+                            return@withReindexLock UploadResult.Duplicate(dup)
+                        }
+                        throw e
+                    }
+                    documentId = inserted.id
+
+                    // Save images BEFORE chunks
+                    val imageExtractor = ImageExtractor(imagesPath, ImageRepository(conn))
+                    imageExtractor.saveImages(documentId, processed.images)
+
+                    // Insert chunks (embeddings precomputed above, one per block)
+                    val chunks = chunkedBlocks.mapIndexed { index, block ->
+                        Chunk(
+                            documentId = documentId,
+                            content = block.content,
+                            contentType = block.type,
+                            pageNumber = block.pageNumber,
+                            sectionId = block.sectionId,
+                            heading = block.heading,
+                            embedding = embeddings[index],
+                            imageRefs = block.imageRefs
+                        )
+                    }
+                    ChunkRepository(conn).insertBatch(chunks)
+
+                    // Update counts and indexedAt
+                    docRepo.updateAfterIndexing(documentId, chunks.size, processed.images.size)
+
+                    conn.commit()
+                    committed = true
+
+                    // If a racing uploader that owned the file deleted it after
+                    // a transient error, restore the source from the original
+                    // bytes (identical content — same hash).
+                    if (!ownsSourceFile && !Files.exists(finalPath)) {
+                        try {
+                            Files.write(finalPath, bytes)
+                        } catch (repairEx: Exception) {
+                            logger.warn("Failed to restore source file {} after commit — document {} may reference a missing file", finalPath, documentId, repairEx)
+                        }
+                    }
+
+                    // Sync the in-memory vector index from the in-memory chunks
+                    // BEFORE the post-commit re-read. If findById below throws
+                    // after the successful commit, the DB has the chunks and so
+                    // does the search index — no divergence. SearchService does
+                    // not consult chunk.id (search works off embedding +
+                    // documentId), so the un-ID'd in-memory list is sufficient.
+                    searchService.appendChunks(chunks)
+
+                    // Re-read committed state
+                    val finalDoc = docRepo.findById(documentId)
+                        ?: throw IllegalStateException("Document $documentId missing after successful commit")
+                    conn.close()
+                    conn = null
+
+                    UploadResult.Created(finalDoc)
+                } catch (e: Exception) {
+                    // Rollback / compensation — only clean up if transaction was NOT committed
+                    if (!committed) {
+                        try {
+                            conn?.rollback()
+                        } catch (_: Exception) {
+                        }
+
+                        // Delete source file only if this request placed it
+                        if (ownsSourceFile) runCatching { Files.deleteIfExists(finalPath) }
+
+                        // Delete image directory if it was created
+                        if (documentId != null) {
+                            val imageDir = Path.of(imagesPath, documentId.toString())
+                            if (Files.exists(imageDir)) {
+                                runCatching {
+                                    Files.walk(imageDir).use { stream ->
+                                        stream.sorted(Comparator.reverseOrder())
+                                            .forEach { Files.deleteIfExists(it) }
+                                    }
                                 }
                             }
                         }
                     }
-                }
 
-                try {
-                    conn?.close()
-                } catch (_: Exception) {
-                }
+                    try {
+                        conn?.close()
+                    } catch (_: Exception) {
+                    }
 
-                throw e
+                    throw e
+                }
+            }
+        }
+
+    /**
+     * Deletes the document row by id (cascading to chunks/images via FK) and
+     * removes its chunks from the in-memory search index. Returns the deleted
+     * document row if it existed, null otherwise.
+     *
+     * Caller is responsible for filesystem cleanup (source file + image
+     * directory); this method owns only the DB + in-memory index contract.
+     */
+    suspend fun deleteDocument(id: Long): Document? =
+        withContext(Dispatchers.IO) {
+            // Held across DB delete + in-memory index removal so a concurrent
+            // reindex cannot re-import the deleted chunks into SearchService
+            // between our delete and our removeDocument() call.
+            backfillJob.withReindexLock {
+                val deleted = database.connect().use { conn ->
+                    val repo = DocumentRepository(conn)
+                    val found = repo.findById(id)
+                    if (found != null) {
+                        repo.delete(id)
+                    }
+                    found
+                }
+                if (deleted != null) {
+                    searchService.removeDocument(id)
+                }
+                deleted
             }
         }
 

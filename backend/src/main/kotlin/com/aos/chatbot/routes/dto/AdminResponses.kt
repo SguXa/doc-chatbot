@@ -36,3 +36,21 @@ data class DocumentListResponse(
     val documents: List<Document>,
     val total: Int
 )
+
+@Serializable
+data class ReindexStartedResponse(val status: String = "started")
+
+@Serializable
+data class ReindexAlreadyRunningResponse(val status: String = "already_running")
+
+@Serializable
+data class ReindexInProgressResponse(
+    val error: String = "reindex_in_progress",
+    val message: String
+)
+
+@Serializable
+data class OllamaUnavailableResponse(
+    val error: String = "ollama_unavailable",
+    val message: String = "Embedding service (Ollama) is unavailable; upload cannot be indexed. Please retry shortly."
+)

@@ -1,16 +1,44 @@
 services:
+  artemis:
+    image: apache/activemq-artemis:2.32.0
+    container_name: aos-artemis-dev
+    environment:
+      - ARTEMIS_USER=
+      - ARTEMIS_PASSWORD=
+      - ANONYMOUS_LOGIN=true
+    ports:
+      - "61616:61616"
+      - "8161:8161"
+    restart: unless-stopped
+
   backend:
     build: ./backend
     container_name: aos-backend-dev
+    # Dev mode: Artemis runs inline in this compose file; Ollama is expected
+    # on the developer's host (install from ollama.ai, pull bge-m3 and the
+    # llm model). Override OLLAMA_URL via .env if Ollama runs elsewhere.
     environment:
       - MODE=full
       - PORT=8080
       - DATABASE_PATH=/data/aos.db
       - DATA_PATH=/data
+      - OLLAMA_URL=${OLLAMA_URL:-http://host.docker.internal:11434}
+      - OLLAMA_LLM_MODEL=${OLLAMA_LLM_MODEL:-qwen2.5:7b-instruct-q4_K_M}
+      - OLLAMA_EMBED_MODEL=${OLLAMA_EMBED_MODEL:-bge-m3}
+      - ARTEMIS_BROKER_URL=tcp://artemis:61616
+      - ARTEMIS_USER=
+      - ARTEMIS_PASSWORD=
+    extra_hosts:
+      # Linux needs this to reach the host via `host.docker.internal`; Docker
+      # Desktop on macOS/Windows provides it automatically but the alias is
+      # harmless when duplicated.
+      - "host.docker.internal:host-gateway"
     volumes:
       - aos-data:/data
     ports:
       - "8080:8080"
+    depends_on:
+      - artemis
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/api/health"]
       interval: 30s
