@@ -34,6 +34,14 @@ data class ArtemisConfig(
         "ArtemisConfig(brokerUrl=$brokerUrl, user=$user, password=***)"
 }
 
+data class AuthConfig(
+    val jwtSecret: String,
+    val adminPassword: String
+) {
+    override fun toString(): String =
+        "AuthConfig(jwtSecret=***, adminPassword=***)"
+}
+
 data class AppConfig(
     val mode: AppMode,
     val port: Int,
@@ -43,7 +51,8 @@ data class AppConfig(
     val documentsPath: String,
     val imagesPath: String,
     val ollama: OllamaConfig,
-    val artemis: ArtemisConfig
+    val artemis: ArtemisConfig,
+    val auth: AuthConfig
 ) {
     companion object {
         fun from(environment: ApplicationEnvironment): AppConfig {
@@ -66,6 +75,10 @@ data class AppConfig(
                     brokerUrl = config.property("app.artemis.brokerUrl").getString(),
                     user = config.property("app.artemis.user").getString(),
                     password = config.property("app.artemis.password").getString()
+                ),
+                auth = AuthConfig(
+                    jwtSecret = config.property("app.auth.jwtSecret").getString(),
+                    adminPassword = config.property("app.auth.adminPassword").getString()
                 )
             )
         }

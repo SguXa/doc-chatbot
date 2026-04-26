@@ -94,6 +94,8 @@ class ApplicationTest {
         cfg.put("app.artemis.brokerUrl", "tcp://127.0.0.1:65535")
         cfg.put("app.artemis.user", "")
         cfg.put("app.artemis.password", "")
+        cfg.put("app.auth.jwtSecret", "")
+        cfg.put("app.auth.adminPassword", "")
         return cfg
     }
 

@@ -64,15 +64,15 @@ Introduce JWT-based authentication for the admin surface. A single administrator
 
 `JWT_SECRET` and `ADMIN_PASSWORD` already exist in `.env.example` (commented, marked "Phase 4+"). This task makes them real on the Kotlin side.
 
-- [ ] Add `app.auth { jwtSecret = ""; jwtSecret = ${?JWT_SECRET}; adminPassword = ""; adminPassword = ${?ADMIN_PASSWORD} }` block in `application.conf`
-- [ ] Add `data class AuthConfig(jwtSecret: String, adminPassword: String)` to `AppConfig.kt` with masked `toString()` (mirror `ArtemisConfig`'s pattern: `"AuthConfig(jwtSecret=***, adminPassword=***)"`)
-- [ ] Add `auth: AuthConfig` field to `AppConfig`
-- [ ] `AppConfig.from(environment)` reads both properties; empty values resolve as empty strings, never nulls
-- [ ] Uncomment `JWT_SECRET=` and `ADMIN_PASSWORD=` lines in `.env.example`; add comment "required in MODE=full and MODE=admin; ignored in MODE=client"
-- [ ] AppConfigTest: defaults to empty strings when env vars unset
-- [ ] AppConfigTest: each env var overrides its default independently
-- [ ] AppConfigTest: `AuthConfig.toString()` masks both fields
-- [ ] Verify: `cd backend && ./gradlew test`
+- [x] Add `app.auth { jwtSecret = ""; jwtSecret = ${?JWT_SECRET}; adminPassword = ""; adminPassword = ${?ADMIN_PASSWORD} }` block in `application.conf`
+- [x] Add `data class AuthConfig(jwtSecret: String, adminPassword: String)` to `AppConfig.kt` with masked `toString()` (mirror `ArtemisConfig`'s pattern: `"AuthConfig(jwtSecret=***, adminPassword=***)"`)
+- [x] Add `auth: AuthConfig` field to `AppConfig`
+- [x] `AppConfig.from(environment)` reads both properties; empty values resolve as empty strings, never nulls
+- [x] Uncomment `JWT_SECRET=` and `ADMIN_PASSWORD=` lines in `.env.example`; add comment "required in MODE=full and MODE=admin; ignored in MODE=client"
+- [x] AppConfigTest: defaults to empty strings when env vars unset
+- [x] AppConfigTest: each env var overrides its default independently
+- [x] AppConfigTest: `AuthConfig.toString()` masks both fields
+- [x] Verify: `cd backend && ./gradlew test`
 
 ### Task 3: Implement PasswordHasher
 

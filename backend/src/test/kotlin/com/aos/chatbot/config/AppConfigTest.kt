@@ -31,7 +31,9 @@ class AppConfigTest {
             "app.ollama.embedModel" to "bge-m3",
             "app.artemis.brokerUrl" to "tcp://artemis:61616",
             "app.artemis.user" to "",
-            "app.artemis.password" to ""
+            "app.artemis.password" to "",
+            "app.auth.jwtSecret" to "",
+            "app.auth.adminPassword" to ""
         )
         val merged = defaults + overrides.toMap()
         return buildEnvironment(*merged.map { it.key to it.value }.toTypedArray())
@@ -205,5 +207,40 @@ class AppConfigTest {
         ))
         assertEquals("", appConfig.artemis.user)
         assertEquals("", appConfig.artemis.password)
+    }
+
+    @Test
+    fun `auth defaults to empty strings when env vars unset`() {
+        val appConfig = AppConfig.from(defaultEnv())
+        assertEquals("", appConfig.auth.jwtSecret)
+        assertEquals("", appConfig.auth.adminPassword)
+    }
+
+    @Test
+    fun `JWT_SECRET overrides jwtSecret independently of adminPassword`() {
+        val appConfig = AppConfig.from(defaultEnv(
+            "app.auth.jwtSecret" to "0123456789abcdef0123456789abcdef"
+        ))
+        assertEquals("0123456789abcdef0123456789abcdef", appConfig.auth.jwtSecret)
+        assertEquals("", appConfig.auth.adminPassword)
+    }
+
+    @Test
+    fun `ADMIN_PASSWORD overrides adminPassword independently of jwtSecret`() {
+        val appConfig = AppConfig.from(defaultEnv(
+            "app.auth.adminPassword" to "s3cret-admin"
+        ))
+        assertEquals("", appConfig.auth.jwtSecret)
+        assertEquals("s3cret-admin", appConfig.auth.adminPassword)
+    }
+
+    @Test
+    fun `AuthConfig toString masks both fields`() {
+        val auth = AuthConfig(
+            jwtSecret = "0123456789abcdef0123456789abcdef",
+            adminPassword = "very-real-password"
+        )
+        val rendered = auth.toString()
+        assertEquals("AuthConfig(jwtSecret=***, adminPassword=***)", rendered)
     }
 }
