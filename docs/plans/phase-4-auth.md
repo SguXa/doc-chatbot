@@ -123,16 +123,16 @@ Encapsulates HS256 signing/verification with fixed issuer and 24 h TTL. Operates
 
 Owns the in-memory password hash and the login decision. JWT issuance is delegated to `JwtConfig`.
 
-- [ ] Constructor `AuthService(authConfig: AuthConfig, jwtConfig: JwtConfig, hasher: PasswordHasher = PasswordHasher)`
-- [ ] `init { require(authConfig.adminPassword.isNotBlank()) { "ADMIN_PASSWORD must be set" } }` — internal invariant only. The user-facing fail-fast lives in `Application.module()` (Task 7); this check is defense-in-depth and is not the primary error reported to operators
-- [ ] `private val passwordHash: String = hasher.hash(authConfig.adminPassword)` — computed once at startup
-- [ ] `fun login(password: String): String?` — returns `jwtConfig.sign()` on a verified password, `null` otherwise
-- [ ] KDoc: `username` from `LoginRequest` is intentionally not a parameter — the wire format keeps it for forward-compat (see ARCHITECTURE.md §7.4) but the server ignores it
-- [ ] Test: `login(correctPassword)` returns a non-null token that `jwtConfig.verify(...)` accepts
-- [ ] Test: `login(wrongPassword)` returns null
-- [ ] Test: constructor throws when `authConfig.adminPassword` is empty or blank
-- [ ] Test: `login(blankPassword)` returns null (does not throw, since `PasswordHasher.verify` swallows malformed input)
-- [ ] Verify: `cd backend && ./gradlew test`
+- [x] Constructor `AuthService(authConfig: AuthConfig, jwtConfig: JwtConfig, hasher: PasswordHasher = PasswordHasher)`
+- [x] `init { require(authConfig.adminPassword.isNotBlank()) { "ADMIN_PASSWORD must be set" } }` — internal invariant only. The user-facing fail-fast lives in `Application.module()` (Task 7); this check is defense-in-depth and is not the primary error reported to operators
+- [x] `private val passwordHash: String = hasher.hash(authConfig.adminPassword)` — computed once at startup
+- [x] `fun login(password: String): String?` — returns `jwtConfig.sign()` on a verified password, `null` otherwise
+- [x] KDoc: `username` from `LoginRequest` is intentionally not a parameter — the wire format keeps it for forward-compat (see ARCHITECTURE.md §7.4) but the server ignores it
+- [x] Test: `login(correctPassword)` returns a non-null token that `jwtConfig.verify(...)` accepts
+- [x] Test: `login(wrongPassword)` returns null
+- [x] Test: constructor throws when `authConfig.adminPassword` is empty or blank
+- [x] Test: `login(blankPassword)` returns null (does not throw, since `PasswordHasher.verify` swallows malformed input)
+- [x] Verify: `cd backend && ./gradlew test`
 
 ### Task 6: Implement AuthRoutes
 
