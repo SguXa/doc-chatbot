@@ -220,17 +220,17 @@ After this task, an operator can navigate to `/login`, submit `ADMIN_PASSWORD`, 
 
 Replace the placeholder element from Task 6 with the real layout. After this task, logged-in operators see a left sidebar with two links and a logout button at the bottom.
 
-- [ ] `AdminLayout.tsx`:
-  - [ ] Flex container: 240px sidebar on the left, main content (`<Outlet />`) on the right
-  - [ ] Sidebar: app title at top, `<NavLink>` to `/admin/documents` ("Documents") and `/admin/system-prompt` ("System Prompt") with `aria-current="page"` styling, `<Button variant="ghost">` "Log out" at the bottom
-  - [ ] Logout: `apiPost('/api/auth/logout')` (await but ignore failure) → `useAuthStore.getState().logout()` → `navigate('/login', { replace: true })`. Fire-and-forget on failure: even if backend is unreachable, local logout still proceeds. Wrapped in `try/catch` so failures don't block the user
-- [ ] Update `App.tsx`: `/admin` route uses `<ProtectedRoute>` containing `<AdminLayout>` containing nested routes (`documents`, `system-prompt`) — initially still placeholder elements per route (real pages in Tasks 8/11)
-- [ ] Tests:
-  - [ ] Renders both nav links with correct hrefs
-  - [ ] Active link shows the active state when route matches
-  - [ ] Logout button: clicking calls `apiPost('/api/auth/logout')`, clears auth store, navigates to `/login`. Assert all three with mocks
-  - [ ] Logout still clears local state when the API call rejects (mock `apiPost` to reject)
-- [ ] Verify: `cd frontend && npm test`
+- [x] `AdminLayout.tsx`:
+  - [x] Flex container: 240px sidebar on the left, main content (`<Outlet />`) on the right
+  - [x] Sidebar: app title at top, `<NavLink>` to `/admin/documents` ("Documents") and `/admin/system-prompt` ("System Prompt") with `aria-current="page"` styling, `<Button variant="ghost">` "Log out" at the bottom
+  - [x] Logout: `apiPost('/api/auth/logout')` (await but ignore failure) → `useAuthStore.getState().logout()` → `navigate('/login', { replace: true })`. Fire-and-forget on failure: even if backend is unreachable, local logout still proceeds. Wrapped in `try/catch` so failures don't block the user
+- [x] Update `App.tsx`: `/admin` route uses `<ProtectedRoute>` containing `<AdminLayout>` containing nested routes (`documents`, `system-prompt`) — initially still placeholder elements per route (real pages in Tasks 8/11)
+- [x] Tests:
+  - [x] Renders both nav links with correct hrefs
+  - [x] Active link shows the active state when route matches
+  - [x] Logout button: clicking calls `apiPost('/api/auth/logout')`, clears auth store, navigates to `/login`. Assert all three with mocks
+  - [x] Logout still clears local state when the API call rejects (mock `apiPost` to reject)
+- [x] Verify: `cd frontend && npm test`
 
 ### Task 8: `DocumentsPage` — read-only list
 
