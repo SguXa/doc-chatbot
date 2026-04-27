@@ -171,16 +171,16 @@ Single zustand store, no persistence middleware (we manage `localStorage` explic
 
 Single source of truth for translating backend error discriminators into UX messages. Used by Login (400/401 paths), DocumentUpload (every row in the §7.2 table), Delete and Reindex (503 paths), SystemPromptPage (400 paths). Writing it now means downstream tasks just call `parseApiError(error)` and render `error.message`.
 
-- [ ] Define `type ParsedError = { kind: 'duplicate' | 'unsupported_extension' | 'unreadable_document' | 'empty_content' | 'malformed_multipart' | 'file_too_large' | 'invalid_content_type' | 'ollama_unavailable' | 'reindex_in_progress' | 'invalid_credentials' | 'empty_password' | 'malformed_body' | 'empty_prompt' | 'prompt_too_long' | 'unauthorized' | 'unknown'; message: string; existing?: DocumentDto }` where `DocumentDto` is the same type defined in `api/documents.ts` (Task 8). The wire shape of `body.existing` for `duplicate_document` is the **full `Document` model** (per `backend/src/main/kotlin/com/aos/chatbot/routes/dto/AdminResponses.kt:10`), not a trimmed triple — kotlinx.serialization emits camelCase by default, so the field names match `DocumentDto` directly. Forward-declare `DocumentDto` in `lib/errors.ts` via a `type` import to avoid a `lib/` → `api/` dependency
-- [ ] `function parseApiError(error: unknown): ParsedError` — narrows `unknown` to `ApiError`; reads `error.body.error` and `error.body.reason`; maps to `ParsedError.kind` per the table in ARCHITECTURE.md §7.2 + §7.3 + §7.4; `existing` is only present for `duplicate` (lifted from `body.existing`); `message` is an English human-readable string
-- [ ] Default branch: `kind: 'unknown'`, `message: error.message ?? 'Server error'` — never silently drops; downstream UI shows the generic message. DELETE-specific 400/404 errors (raw "Invalid document ID", "Document not found") also fall through here intentionally (see Design Decisions)
-- [ ] Tests:
-  - [ ] Every kind from the union has a deterministic mapping (table-driven test, one row per kind)
-  - [ ] `UnauthorizedError` → `kind: 'unauthorized'`
-  - [ ] `ApiError` with `body=undefined` → `kind: 'unknown'`, message preserved from `error.message`
-  - [ ] Non-`ApiError` thrown value (string, plain `Error`) → `kind: 'unknown'`, sensible fallback message
-  - [ ] `duplicate` carries the `existing` payload through
-- [ ] Verify: `cd frontend && npm test`
+- [x] Define `type ParsedError = { kind: 'duplicate' | 'unsupported_extension' | 'unreadable_document' | 'empty_content' | 'malformed_multipart' | 'file_too_large' | 'invalid_content_type' | 'ollama_unavailable' | 'reindex_in_progress' | 'invalid_credentials' | 'empty_password' | 'malformed_body' | 'empty_prompt' | 'prompt_too_long' | 'unauthorized' | 'unknown'; message: string; existing?: DocumentDto }` where `DocumentDto` is the same type defined in `api/documents.ts` (Task 8). The wire shape of `body.existing` for `duplicate_document` is the **full `Document` model** (per `backend/src/main/kotlin/com/aos/chatbot/routes/dto/AdminResponses.kt:10`), not a trimmed triple — kotlinx.serialization emits camelCase by default, so the field names match `DocumentDto` directly. Forward-declare `DocumentDto` in `lib/errors.ts` via a `type` import to avoid a `lib/` → `api/` dependency
+- [x] `function parseApiError(error: unknown): ParsedError` — narrows `unknown` to `ApiError`; reads `error.body.error` and `error.body.reason`; maps to `ParsedError.kind` per the table in ARCHITECTURE.md §7.2 + §7.3 + §7.4; `existing` is only present for `duplicate` (lifted from `body.existing`); `message` is an English human-readable string
+- [x] Default branch: `kind: 'unknown'`, `message: error.message ?? 'Server error'` — never silently drops; downstream UI shows the generic message. DELETE-specific 400/404 errors (raw "Invalid document ID", "Document not found") also fall through here intentionally (see Design Decisions)
+- [x] Tests:
+  - [x] Every kind from the union has a deterministic mapping (table-driven test, one row per kind)
+  - [x] `UnauthorizedError` → `kind: 'unauthorized'`
+  - [x] `ApiError` with `body=undefined` → `kind: 'unknown'`, message preserved from `error.message`
+  - [x] Non-`ApiError` thrown value (string, plain `Error`) → `kind: 'unknown'`, sensible fallback message
+  - [x] `duplicate` carries the `existing` payload through
+- [x] Verify: `cd frontend && npm test`
 
 ### Task 6: `LoginForm` + `ProtectedRoute` + base routing
 
