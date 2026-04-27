@@ -295,22 +295,22 @@ Dev compose runs `MODE=full` → both `JWT_SECRET` and `ADMIN_PASSWORD` are requ
 
 Records the auth design choice and the §11.2 amendment.
 
-- [ ] Follow the format of existing ADRs in `docs/adr/` — Status, Date, Context, Decision, Consequences, Alternatives
-- [ ] Status: Accepted (Phase 4); Date: today
-- [ ] Context: ARCHITECTURE.md §11 originally specified a `users` table, multi-role auth (`user|admin`), and a default admin bootstrap procedure. Implementation experience and a narrower product scope (single internal operator using the chatbot tooling on the local network) made the multi-user surface speculative. Phase 4 must either build the speculative surface or formally narrow the contract
-- [ ] Decision: One administrator, password from `ADMIN_PASSWORD` env, hashed in memory at startup, never persisted. JWT token has no role claim. `/api/chat/*` is public — chat is unauthenticated for any caller on the network, consistent with the deployment story (the only public-facing mode is `MODE=client`, which exposes chat only). The `users` table is dropped in V005 since no row is ever written to it
-- [ ] Consequences:
+- [x] Follow the format of existing ADRs in `docs/adr/` — Status, Date, Context, Decision, Consequences, Alternatives
+- [x] Status: Accepted (Phase 4); Date: today
+- [x] Context: ARCHITECTURE.md §11 originally specified a `users` table, multi-role auth (`user|admin`), and a default admin bootstrap procedure. Implementation experience and a narrower product scope (single internal operator using the chatbot tooling on the local network) made the multi-user surface speculative. Phase 4 must either build the speculative surface or formally narrow the contract
+- [x] Decision: One administrator, password from `ADMIN_PASSWORD` env, hashed in memory at startup, never persisted. JWT token has no role claim. `/api/chat/*` is public — chat is unauthenticated for any caller on the network, consistent with the deployment story (the only public-facing mode is `MODE=client`, which exposes chat only). The `users` table is dropped in V005 since no row is ever written to it
+- [x] Consequences:
   - Operating cost: rotating the admin password is a single-step `env-var change + restart`. No DB writes; no migration; no `--reset-admin` script
   - Single point of failure: anyone with shell access to the runtime environment can read `ADMIN_PASSWORD`. This is identical to the existing risk model (the same operator already has DB access)
   - No multi-user upgrade path without follow-up work: adding user accounts later requires a fresh migration to recreate `users`, a new `UserRepository`, new login logic that selects by `username`, and a `role`-aware authorization decision. ARCHITECTURE.md §11 should be revisited if and when that demand materializes
   - The original §11.2 entry stating chat requires `user|admin` is amended to `chat = public`. Health remains public. Auth endpoints are public (login is the entry point)
-- [ ] Alternatives considered:
+- [x] Alternatives considered:
   - Keep the speculative `users`-table design and bootstrap one row from `ADMIN_PASSWORD`: rejected — a single-row table is not a "users system", just a glorified env-var redirect with extra moving parts
   - Argon2 instead of bcrypt: rejected — Argon2's JVM bindings require a native library, which complicates the fat-JAR distribution. Bcrypt cost=12 is adequate for a single-login-per-day surface
   - Server-side token revocation (token-version column): rejected — there is no scenario where a 24-h JWT outliving the operator's intent is a meaningful threat, given that the operator can also restart the JVM
   - Audience claim (`aud`): rejected — there is exactly one consumer of these tokens (the same backend that issued them) and one issuer; an `aud` claim adds no security and one more thing to verify and document
   - Protected chat (`user|admin`): rejected — the deployment story routes public chat through the `MODE=client` frontend and keeps admin behind internal-network or VPN access; adding a chat token means every chat client needs auth which the product never asked for
-- [ ] Update `docs/adr/README.md` index with a line for ADR 0007
+- [x] Update `docs/adr/README.md` index with a line for ADR 0007
 
 ### Task 12: Update ARCHITECTURE.md
 

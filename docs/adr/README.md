@@ -12,3 +12,4 @@ ADRs are not implementation plans. They do not list tasks or files. For Phase-le
 - [0004 — No orphan final-artifact reconciliation on the hot path](0004-no-orphan-final-artifact-reconciliation.md)
 - [0005 — Authentication deferred out of Phase 2](0005-auth-deferred-out-of-phase-2.md)
 - [0006 — Queue-based chat dispatch with in-memory token bus](0006-queue-chat-dispatch-with-in-memory-bus.md)
+- [0007 — Single administrator, no persisted user records](0007-single-admin-no-persisted-users.md)
