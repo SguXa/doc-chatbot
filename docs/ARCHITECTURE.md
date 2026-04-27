@@ -660,7 +660,7 @@ Upload, parse, and index a document **synchronously**. The response is returned 
   "existing": {
     "id": 42,
     "filename": "troubleshooting_v2.docx",
-    "indexed_at": "2026-03-28T14:12:03Z"
+    "indexedAt": "2026-03-28T14:12:03Z"
   }
 }
 ```
@@ -1431,23 +1431,30 @@ WARN and are swallowed. See `services/ModelWarmup.kt`.
 - [x] SSE streaming
 - [x] Queue integration (Artemis)
 
-### Phase 4: Admin Panel (Week 7)
+### Phase 4: Auth (single admin) (Week 7)
 
 - [x] JWT authentication
-- [ ] Document upload UI
-- [ ] Document list/delete
-- [ ] System prompt editor
-- [ ] Export/Import
+- [x] Admin route protection (`/api/admin/*`, `/api/config/*` behind `jwt-admin`)
 
-### Phase 5: Chat UI (Week 8)
+### Phase 5: Admin UI (Week 7-8)
+
+- [x] Document upload UI
+- [x] Document list/delete
+- [x] System prompt editor
+- [x] Reindex UI
+
+> Export/Import deferred to Phase 6.
+
+### Phase 6: Chat UI + Export/Import (Week 8-9)
 
 - [ ] Chat interface
 - [ ] Message streaming
 - [ ] Source badges
 - [ ] Queue status display
 - [ ] History (session only)
+- [ ] Export/Import knowledge base
 
-### Phase 6: Polish (Week 9-10)
+### Phase 7: Polish (Week 9-10)
 
 - [ ] Error handling
 - [ ] Loading states
@@ -1471,6 +1478,10 @@ WARN and are swallowed. See `services/ModelWarmup.kt`.
 | **Chat History** | Persist conversations (optional) | Low |
 | **Keycloak** | SSO integration for some clients | Medium |
 | **Multi-language UI** | DE + EN interface | Low |
+| **System Prompt Preview** | Render the final prompt with retrieval context without sending it to the LLM, for debugging prompt formulations | Medium |
+| **Document Inspect mode** | Read-only chunk viewer per document, so operators can verify parse quality after upload (candidate for Phase 7) | Medium |
+| **PDF tables extraction** | Use `tabula-java` to recognize tabular structure in PDFs (currently text becomes mush) | Medium |
+| **PDF OCR** | Use `tess4j` for scanned PDFs that currently produce `empty_content` | Low |
 
 ### Scalability Options
 

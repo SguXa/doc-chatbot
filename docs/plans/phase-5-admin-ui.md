@@ -404,25 +404,25 @@ End-to-end gate before doc updates. No new code — just verification that every
 - Modify: `CLAUDE.md`
 - Modify: `README.md`
 
-- [ ] `ARCHITECTURE.md` §15 — restructure to match what actually shipped. The original §15 has "Phase 4: Admin Panel" and "Phase 5: Chat UI"; Phase 4 was retroactively scoped to auth-only and Phase 5 became Admin UI. Apply these edits:
-  - [ ] Rename "Phase 4: Admin Panel" → "Phase 4: Auth (single admin)" and replace its bullets with the actual Phase 4 deliverables (JWT auth + admin route protection)
-  - [ ] Insert a new "Phase 5: Admin UI" section between Phase 4 and the existing "Phase 5: Chat UI". Bullets: Document upload UI ✓, Document list/delete ✓, System prompt editor ✓, Reindex UI ✓. Note "Export/Import deferred to Phase 6" without a checkbox
-  - [ ] Renumber the original "Phase 5: Chat UI" → "Phase 6: Chat UI + Export/Import" with an Export/Import bullet appended
-  - [ ] Renumber the original "Phase 6: Polish" → "Phase 7: Polish"
-- [ ] `ARCHITECTURE.md` §7.2 — fix the `existing.indexed_at` field name in the 409 response example (currently snake_case at line ~664). The actual wire is camelCase `indexedAt` (kotlinx.serialization default; matches the rest of the same response). Verify by `grep -n "indexed_at" docs/ARCHITECTURE.md` after the fix returns only the SQL DDL hits, not the JSON example
-- [ ] `ARCHITECTURE.md` §16: append four rows to the Future Enhancements table:
+- [x] `ARCHITECTURE.md` §15 — restructure to match what actually shipped. The original §15 has "Phase 4: Admin Panel" and "Phase 5: Chat UI"; Phase 4 was retroactively scoped to auth-only and Phase 5 became Admin UI. Apply these edits:
+  - [x] Rename "Phase 4: Admin Panel" → "Phase 4: Auth (single admin)" and replace its bullets with the actual Phase 4 deliverables (JWT auth + admin route protection)
+  - [x] Insert a new "Phase 5: Admin UI" section between Phase 4 and the existing "Phase 5: Chat UI". Bullets: Document upload UI ✓, Document list/delete ✓, System prompt editor ✓, Reindex UI ✓. Note "Export/Import deferred to Phase 6" without a checkbox
+  - [x] Renumber the original "Phase 5: Chat UI" → "Phase 6: Chat UI + Export/Import" with an Export/Import bullet appended
+  - [x] Renumber the original "Phase 6: Polish" → "Phase 7: Polish"
+- [x] `ARCHITECTURE.md` §7.2 — fix the `existing.indexed_at` field name in the 409 response example (currently snake_case at line ~664). The actual wire is camelCase `indexedAt` (kotlinx.serialization default; matches the rest of the same response). Verify by `grep -n "indexed_at" docs/ARCHITECTURE.md` after the fix returns only the SQL DDL hits, not the JSON example
+- [x] `ARCHITECTURE.md` §16: append four rows to the Future Enhancements table:
   | Feature | Description | Priority |
   | **System Prompt Preview** | Render the final prompt with retrieval context without sending it to the LLM, for debugging prompt formulations | Medium |
   | **Document Inspect mode** | Read-only chunk viewer per document, so operators can verify parse quality after upload (candidate for Phase 7) | Medium |
   | **PDF tables extraction** | Use `tabula-java` to recognize tabular structure in PDFs (currently text becomes mush) | Medium |
   | **PDF OCR** | Use `tess4j` for scanned PDFs that currently produce `empty_content` | Low |
-- [ ] `CLAUDE.md` "Phase Discipline" — add a Phase 5 entry: "**Admin UI (Phase 5):** React admin surface for document management and system prompt editing. Backend addition: `GET/PUT /api/config/system-prompt` (admin-protected). Login at `/login`, admin at `/admin/documents` and `/admin/system-prompt`. Token in `localStorage['aos.token']`. **Export/Import is Phase 6** (with Chat UI). Document Inspect mode is a Phase 7 candidate — see ARCHITECTURE.md §16."
-- [ ] `README.md`: add an "Admin UI" subsection under Document Management:
-  - [ ] Login URL, default port (5173 for `npm run dev`, 3000 for the prod nginx)
-  - [ ] Drag-drop upload, list/delete, reindex, system prompt editor — one bullet each
-  - [ ] Note: "Export/Import lands in Phase 6"
-  - [ ] Note: production deployment of `MODE=full`/`MODE=admin` should still be restricted to internal networks (chat is public)
-- [ ] No changes to ADRs in this phase — no new architectural choices warrant one (a possible exception is "fronted state architecture", but the design is conventional enough that an ADR would be filler)
+- [x] `CLAUDE.md` "Phase Discipline" — add a Phase 5 entry: "**Admin UI (Phase 5):** React admin surface for document management and system prompt editing. Backend addition: `GET/PUT /api/config/system-prompt` (admin-protected). Login at `/login`, admin at `/admin/documents` and `/admin/system-prompt`. Token in `localStorage['aos.token']`. **Export/Import is Phase 6** (with Chat UI). Document Inspect mode is a Phase 7 candidate — see ARCHITECTURE.md §16."
+- [x] `README.md`: add an "Admin UI" subsection under Document Management:
+  - [x] Login URL, default port (5173 for `npm run dev`, 3000 for the prod nginx)
+  - [x] Drag-drop upload, list/delete, reindex, system prompt editor — one bullet each
+  - [x] Note: "Export/Import lands in Phase 6"
+  - [x] Note: production deployment of `MODE=full`/`MODE=admin` should still be restricted to internal networks (chat is public)
+- [x] No changes to ADRs in this phase — no new architectural choices warrant one (a possible exception is "fronted state architecture", but the design is conventional enough that an ADR would be filler)
 
 ### Task 14: Move plan to completed and update branch
 

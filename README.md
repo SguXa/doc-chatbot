@@ -126,6 +126,23 @@ curl -X POST http://localhost:8080/api/admin/documents \
   -F file=@manual.pdf
 ```
 
+### Admin UI
+
+In `MODE=full` or `MODE=admin`, a React admin surface is available. Log in at `/login` with the `ADMIN_PASSWORD`, then land on `/admin/documents`.
+
+- Dev: http://localhost:5173/login (Vite dev server, proxies `/api` to the backend)
+- Production: http://localhost:3000/login (nginx-served bundle from `docker-compose.yml`)
+
+Features:
+
+- Drag-and-drop upload of `.docx`/`.pdf` with byte-level progress and a parsing spinner (synchronous indexing can take ~60s on large files with images).
+- Document list with per-row delete and a global "Reindex all" action that polls `/api/health/ready` while the backfill runs.
+- System prompt editor at `/admin/system-prompt` with character counter, Discard, and Reset-to-default.
+
+Export/Import lands in Phase 6.
+
+Production deployment of `MODE=full`/`MODE=admin` should still be restricted to internal networks — chat remains public on the same listener.
+
 ## Chat
 
 In `MODE=full` or `MODE=client`, `POST /api/chat` streams a Server-Sent Events response of a RAG answer over the indexed documents. Request body: `{"message": "...", "history": [{"role": "user|assistant", "content": "..."}]}`. Emits `queued`, `processing`, `token`, `sources`, `done`, or `error` events. Returns 503 `not_ready` while the embedding backfill or a reindex is in progress, and 503 `queue_unavailable` if the Artemis broker is unreachable.

@@ -101,7 +101,8 @@ cd backend && OLLAMA_TEST_URL=http://localhost:11434 ./gradlew integrationTest
 - **Deployment caveat.** `MODE=full` and `MODE=admin` should still be restricted to operator workstations or VPN — chat remains public on the same listener and admin tokens, while signed, do not include rate limiting in Phase 4.
 - **Embeddings are generated inline on upload (Phase 3).** `DocumentService` calls `EmbeddingService` before persisting chunks, so `embedding` is never NULL for new uploads. Any chunk still carrying `embedding = NULL` (Phase 2 legacy data) is handled by `EmbeddingBackfillJob` on startup.
 - **Chat pipeline is queue-dispatched with an in-memory token bus (Phase 3).** See [ADR 0006](docs/adr/0006-queue-chat-dispatch-with-in-memory-bus.md). `POST /api/chat` enqueues a `ChatRequest` onto `aos.chat.requests`; a single-JVM consumer (`ChatService`, `Semaphore(1)`) streams `QueueEvent`s back through `ChatResponseBus` to the SSE handler. Tokens never traverse JMS.
-- **Chat UI, feedback, export/import are Phase 4/5 work.** Do not introduce future-phase features speculatively. If a future phase needs something you are noticing right now, document it in ARCHITECTURE.md or an ADR — do not implement it.
+- **Admin UI (Phase 5):** React admin surface for document management and system prompt editing. Backend addition: `GET/PUT /api/config/system-prompt` (admin-protected). Login at `/login`, admin at `/admin/documents` and `/admin/system-prompt`. Token in `localStorage['aos.token']`. **Export/Import is Phase 6** (with Chat UI). Document Inspect mode is a Phase 7 candidate — see ARCHITECTURE.md §16.
+- **Chat UI and export/import are Phase 6 work.** Do not introduce future-phase features speculatively. If a future phase needs something you are noticing right now, document it in ARCHITECTURE.md or an ADR — do not implement it.
 
 ## Important Operating Notes
 
