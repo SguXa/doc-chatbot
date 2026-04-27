@@ -150,18 +150,18 @@ Extend the existing minimal `client.ts`. The current `apiGet`/`apiPost` use `fet
 
 Single zustand store, no persistence middleware (we manage `localStorage` explicitly, so the API client and the store agree on the key without round-tripping through `zustand/middleware/persist`).
 
-- [ ] Create the store: `interface AuthState { token: string | null; isAuthenticated: boolean; login: (token: string) => void; logout: () => void; hydrate: () => void }`
-- [ ] `login(token)`: writes `localStorage.setItem('aos.token', token)`, sets `{ token, isAuthenticated: true }`
-- [ ] `logout()`: removes `localStorage['aos.token']`, sets `{ token: null, isAuthenticated: false }`
-- [ ] `hydrate()`: reads `localStorage.getItem('aos.token')`; if non-null sets `{ token, isAuthenticated: true }`; else no-op
-- [ ] `main.tsx`: call `useAuthStore.getState().hydrate()` once before `ReactDOM.createRoot(...).render(...)`. Rationale: this avoids the unauthenticated → authenticated flicker on React's first paint. (Header injection in `apiFetch` does NOT depend on this — it reads the store directly each call — but `ProtectedRoute`'s very first render does, so hydration must precede `render()`)
-- [ ] Tests:
-  - [ ] `login(token)` sets `token` field, flips `isAuthenticated` to true, and writes `localStorage['aos.token']`
-  - [ ] `logout()` clears `token`, flips `isAuthenticated` to false, and removes `localStorage['aos.token']`
-  - [ ] `hydrate()` with token in localStorage sets state authenticated
-  - [ ] `hydrate()` with no token in localStorage leaves state unauthenticated (no localStorage write)
-  - [ ] After `apiFetch` 401 (mock): `useAuthStore.getState().isAuthenticated` is false. This test belongs in `client.test.ts` (Task 3 already lists it) but is cross-referenced here — proves the store IS the single mutation point on 401
-- [ ] Verify: `cd frontend && npm test`
+- [x] Create the store: `interface AuthState { token: string | null; isAuthenticated: boolean; login: (token: string) => void; logout: () => void; hydrate: () => void }`
+- [x] `login(token)`: writes `localStorage.setItem('aos.token', token)`, sets `{ token, isAuthenticated: true }`
+- [x] `logout()`: removes `localStorage['aos.token']`, sets `{ token: null, isAuthenticated: false }`
+- [x] `hydrate()`: reads `localStorage.getItem('aos.token')`; if non-null sets `{ token, isAuthenticated: true }`; else no-op
+- [x] `main.tsx`: call `useAuthStore.getState().hydrate()` once before `ReactDOM.createRoot(...).render(...)`. Rationale: this avoids the unauthenticated → authenticated flicker on React's first paint. (Header injection in `apiFetch` does NOT depend on this — it reads the store directly each call — but `ProtectedRoute`'s very first render does, so hydration must precede `render()`)
+- [x] Tests:
+  - [x] `login(token)` sets `token` field, flips `isAuthenticated` to true, and writes `localStorage['aos.token']`
+  - [x] `logout()` clears `token`, flips `isAuthenticated` to false, and removes `localStorage['aos.token']`
+  - [x] `hydrate()` with token in localStorage sets state authenticated
+  - [x] `hydrate()` with no token in localStorage leaves state unauthenticated (no localStorage write)
+  - [x] After `apiFetch` 401 (mock): `useAuthStore.getState().isAuthenticated` is false. This test belongs in `client.test.ts` (Task 3 already lists it) but is cross-referenced here — proves the store IS the single mutation point on 401
+- [x] Verify: `cd frontend && npm test`
 
 ### Task 5: `lib/errors.ts` — `parseApiError`
 

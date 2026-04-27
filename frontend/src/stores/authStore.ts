@@ -7,6 +7,7 @@ interface AuthState {
   isAuthenticated: boolean
   login: (token: string) => void
   logout: () => void
+  hydrate: () => void
 }
 
 const useAuthStore = create<AuthState>((set) => ({
@@ -19,6 +20,12 @@ const useAuthStore = create<AuthState>((set) => ({
   logout: () => {
     localStorage.removeItem(TOKEN_KEY)
     set({ token: null, isAuthenticated: false })
+  },
+  hydrate: () => {
+    const token = localStorage.getItem(TOKEN_KEY)
+    if (token) {
+      set({ token, isAuthenticated: true })
+    }
   },
 }))
 
