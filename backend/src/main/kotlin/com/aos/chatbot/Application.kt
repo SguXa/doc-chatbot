@@ -3,13 +3,16 @@ package com.aos.chatbot
 import com.aos.chatbot.config.AppConfig
 import com.aos.chatbot.config.AppMode
 import com.aos.chatbot.config.DatabaseConfig
+import com.aos.chatbot.config.JwtConfig
 import com.aos.chatbot.db.Database
 import com.aos.chatbot.parsers.ChunkingService
 import com.aos.chatbot.parsers.ParserFactory
 import com.aos.chatbot.parsers.aos.AosParser
 import com.aos.chatbot.routes.adminRoutes
+import com.aos.chatbot.routes.authRoutes
 import com.aos.chatbot.routes.chatRoutes
 import com.aos.chatbot.routes.healthRoutes
+import com.aos.chatbot.services.AuthService
 import com.aos.chatbot.services.ChatResponseBus
 import com.aos.chatbot.services.ChatService
 import com.aos.chatbot.services.DocumentService
@@ -28,6 +31,10 @@ import io.ktor.server.application.Application
 import io.ktor.server.application.ApplicationStopped
 import io.ktor.server.application.install
 import io.ktor.server.application.log
+import io.ktor.server.auth.Authentication
+import io.ktor.server.auth.authenticate
+import io.ktor.server.auth.jwt.JWTPrincipal
+import io.ktor.server.auth.jwt.jwt
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.plugins.statuspages.StatusPages
 import io.ktor.server.response.respond
@@ -42,6 +49,26 @@ import java.nio.file.Path
 
 fun Application.module() {
     val appConfig = AppConfig.from(environment)
+
+    // Fail-fast: in modes that expose admin routes, both auth secrets must be set.
+    // The JwtConfig and AuthService init blocks repeat these invariants as
+    // defense-in-depth, but this is the primary user-facing failure site so the
+    // error mentions the mode explicitly.
+    if (appConfig.mode in listOf(AppMode.FULL, AppMode.ADMIN)) {
+        require(appConfig.auth.jwtSecret.length >= 32) {
+            "JWT_SECRET must be set and >= 32 characters in MODE=${appConfig.mode}"
+        }
+        require(appConfig.auth.adminPassword.isNotBlank()) {
+            "ADMIN_PASSWORD must be set in MODE=${appConfig.mode}"
+        }
+    }
+
+    val jwtConfig: JwtConfig? = if (appConfig.mode in listOf(AppMode.FULL, AppMode.ADMIN)) {
+        JwtConfig(secret = appConfig.auth.jwtSecret)
+    } else null
+    val authService: AuthService? = if (appConfig.mode in listOf(AppMode.FULL, AppMode.ADMIN)) {
+        AuthService(authConfig = appConfig.auth, jwtConfig = jwtConfig!!)
+    } else null
 
     install(ContentNegotiation) {
         json(Json {
@@ -60,6 +87,16 @@ fun Application.module() {
             if (cause is Error) throw cause
             this@module.log.error("Unhandled exception", cause)
             call.respond(HttpStatusCode.InternalServerError, mapOf("error" to "Internal server error"))
+        }
+    }
+
+    if (jwtConfig != null) {
+        install(Authentication) {
+            jwt("jwt-admin") {
+                verifier(jwtConfig.verifier())
+                validate { credential -> JWTPrincipal(credential.payload) }
+                challenge { _, _ -> call.respond(HttpStatusCode.Unauthorized) }
+            }
         }
     }
 
@@ -165,8 +202,12 @@ fun Application.module() {
             queueService = queueService,
             backfillJob = backfillJob
         )
+        if (authService != null) {
+            authRoutes(authService, ttlSeconds = 86_400)
+        }
         registerModeGatedRoutes(
             mode = appConfig.mode,
+            adminAuthName = if (authService != null) "jwt-admin" else null,
             adminRegistrar = {
                 adminRoutes(
                     documentService,
@@ -183,10 +224,6 @@ fun Application.module() {
         )
     }
 
-    if (appConfig.mode in listOf(AppMode.FULL, AppMode.ADMIN)) {
-        log.warn("Admin routes are unprotected — auth is deferred to Phase 4. Restrict this deployment to internal networks.")
-    }
-
     log.info("AOS Chatbot started in ${appConfig.mode} mode on ${appConfig.host}:${appConfig.port}")
 }
 
@@ -195,15 +232,29 @@ fun Application.module() {
  *  - Admin routes in [AppMode.FULL] and [AppMode.ADMIN]
  *  - Chat routes in [AppMode.FULL] and [AppMode.CLIENT]
  *
+ * When [adminAuthName] is non-null, admin routes are wrapped in
+ * `authenticate(adminAuthName) { ... }` — making the auth-gating explicit and
+ * testable rather than implicit at the call site. The mode gate fires before
+ * the auth wrapper, so MODE=client cannot reach admin routes regardless of
+ * token state (returns 404, not 401).
+ *
  * Extracted so tests can exercise the same gating without booting the full
  * Phase 3 object graph.
  */
 internal fun Route.registerModeGatedRoutes(
     mode: AppMode,
+    adminAuthName: String? = null,
     adminRegistrar: (Route.() -> Unit)? = null,
     chatRegistrar: (Route.() -> Unit)? = null
 ) {
-    if (mode in listOf(AppMode.FULL, AppMode.ADMIN)) adminRegistrar?.invoke(this)
+    if (mode in listOf(AppMode.FULL, AppMode.ADMIN)) {
+        val registerAdmin: Route.() -> Unit = { adminRegistrar?.invoke(this) }
+        if (adminAuthName != null) {
+            authenticate(adminAuthName, build = registerAdmin)
+        } else {
+            registerAdmin()
+        }
+    }
     if (mode in listOf(AppMode.FULL, AppMode.CLIENT)) chatRegistrar?.invoke(this)
 }
 

@@ -170,8 +170,8 @@ Public route bundle. Wired in `Application.module()` only when `AuthService` is 
 
 Bring up the auth object graph in `FULL`/`ADMIN`, wrap admin routes in `authenticate("jwt-admin")`, register auth routes, remove the pre-auth WARN.
 
-- [ ] Add `import io.ktor.server.auth.*` and `import io.ktor.server.auth.jwt.*`
-- [ ] Immediately after `val appConfig = AppConfig.from(environment)`, add a fail-fast block:
+- [x] Add `import io.ktor.server.auth.*` and `import io.ktor.server.auth.jwt.*`
+- [x] Immediately after `val appConfig = AppConfig.from(environment)`, add a fail-fast block:
   ```kotlin
   if (appConfig.mode in listOf(AppMode.FULL, AppMode.ADMIN)) {
       require(appConfig.auth.jwtSecret.length >= 32) {
@@ -182,8 +182,8 @@ Bring up the auth object graph in `FULL`/`ADMIN`, wrap admin routes in `authenti
       }
   }
   ```
-- [ ] Construct `JwtConfig` and `AuthService` only in FULL/ADMIN; declare them as `val authService: AuthService? = ...` so MODE=client paths stay null-clean. The `Application.module()`-level `require` calls above are the **primary** fail-fast site (clear error message tied to mode); the `init` checks inside `JwtConfig` and `AuthService` (Tasks 4 and 5) are defense-in-depth invariants and report-the-internal-message-only
-- [ ] In FULL/ADMIN, install JWT authentication BEFORE `routing { ... }`:
+- [x] Construct `JwtConfig` and `AuthService` only in FULL/ADMIN; declare them as `val authService: AuthService? = ...` so MODE=client paths stay null-clean. The `Application.module()`-level `require` calls above are the **primary** fail-fast site (clear error message tied to mode); the `init` checks inside `JwtConfig` and `AuthService` (Tasks 4 and 5) are defense-in-depth invariants and report-the-internal-message-only
+- [x] In FULL/ADMIN, install JWT authentication BEFORE `routing { ... }`:
   ```kotlin
   install(Authentication) {
       jwt("jwt-admin") {
@@ -198,7 +198,7 @@ Bring up the auth object graph in `FULL`/`ADMIN`, wrap admin routes in `authenti
       }
   }
   ```
-- [ ] **`registerModeGatedRoutes` signature change** (so admin auth-wrapping is explicit and testable, not done implicitly at the call site): change the existing internal helper in `Application.kt` to accept an optional auth-provider name:
+- [x] **`registerModeGatedRoutes` signature change** (so admin auth-wrapping is explicit and testable, not done implicitly at the call site): change the existing internal helper in `Application.kt` to accept an optional auth-provider name:
   ```kotlin
   internal fun Route.registerModeGatedRoutes(
       mode: AppMode,
@@ -214,18 +214,18 @@ Bring up the auth object graph in `FULL`/`ADMIN`, wrap admin routes in `authenti
   }
   ```
   In `Application.module()`, pass `adminAuthName = "jwt-admin"` only in FULL/ADMIN; in MODE=client (no admin routes register at all) the parameter is irrelevant.
-- [ ] In `routing { ... }`:
-  - [ ] Register `authRoutes(authService!!, ttlSeconds = 86_400)` only in FULL/ADMIN. Auth routes are NOT wrapped in `authenticate { }` — login is the entry point
-  - [ ] Call `registerModeGatedRoutes(mode = appConfig.mode, adminAuthName = "jwt-admin", adminRegistrar = { adminRoutes(...) }, chatRegistrar = { chatRoutes(...) })`
-  - [ ] Chat and health routes stay as-is (public)
-- [ ] **Delete** the line `log.warn("Admin routes are unprotected — auth is deferred to Phase 4...")` (Application.kt:187 in current code) — implements ADR 0005 step 3
-- [ ] ApplicationTest: existing assertions still pass (`/api/health` returns 200; mode-gating still routes correctly to chat/admin)
-- [ ] ApplicationTest: in FULL/ADMIN, missing `JWT_SECRET` (or < 32 chars) → application fails to start with the documented message; covered by a test that loads a custom HOCON
-- [ ] ApplicationTest: in FULL/ADMIN, missing `ADMIN_PASSWORD` → application fails to start
-- [ ] ApplicationTest: in `MODE=client`, missing both env vars → application starts cleanly (no auth construction)
-- [ ] ApplicationTest: pre-auth WARN line is no longer emitted in any mode (capture logs and assert absence)
-- [ ] ApplicationTest: assert admin routes are BOTH mode-gated AND auth-gated — in MODE=full, `GET /api/admin/documents` without token returns 401; in MODE=client the same path returns 404 (mode gate fires before auth). This proves `registerModeGatedRoutes`'s auth-wrapping does not bypass the mode check
-- [ ] Verify: `cd backend && ./gradlew test`
+- [x] In `routing { ... }`:
+  - [x] Register `authRoutes(authService!!, ttlSeconds = 86_400)` only in FULL/ADMIN. Auth routes are NOT wrapped in `authenticate { }` — login is the entry point
+  - [x] Call `registerModeGatedRoutes(mode = appConfig.mode, adminAuthName = "jwt-admin", adminRegistrar = { adminRoutes(...) }, chatRegistrar = { chatRoutes(...) })`
+  - [x] Chat and health routes stay as-is (public)
+- [x] **Delete** the line `log.warn("Admin routes are unprotected — auth is deferred to Phase 4...")` (Application.kt:187 in current code) — implements ADR 0005 step 3
+- [x] ApplicationTest: existing assertions still pass (`/api/health` returns 200; mode-gating still routes correctly to chat/admin)
+- [x] ApplicationTest: in FULL/ADMIN, missing `JWT_SECRET` (or < 32 chars) → application fails to start with the documented message; covered by a test that loads a custom HOCON
+- [x] ApplicationTest: in FULL/ADMIN, missing `ADMIN_PASSWORD` → application fails to start
+- [x] ApplicationTest: in `MODE=client`, missing both env vars → application starts cleanly (no auth construction)
+- [x] ApplicationTest: pre-auth WARN line is no longer emitted in any mode (capture logs and assert absence)
+- [x] ApplicationTest: assert admin routes are BOTH mode-gated AND auth-gated — in MODE=full, `GET /api/admin/documents` without token returns 401; in MODE=client the same path returns 404 (mode gate fires before auth). This proves `registerModeGatedRoutes`'s auth-wrapping does not bypass the mode check
+- [x] Verify: `cd backend && ./gradlew test`
 
 ### Task 8: ApplicationAuthWiringTest — cross-cutting auth coverage
 

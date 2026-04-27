@@ -1,5 +1,8 @@
 package com.aos.chatbot
 
+import ch.qos.logback.classic.Logger
+import ch.qos.logback.classic.spi.ILoggingEvent
+import ch.qos.logback.core.read.ListAppender
 import com.aos.chatbot.config.AppMode
 import com.aos.chatbot.config.OllamaConfig
 import com.aos.chatbot.db.Database
@@ -31,10 +34,14 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
+import org.slf4j.LoggerFactory
 import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 class ApplicationTest {
 
@@ -78,8 +85,17 @@ class ApplicationTest {
      * listens on. Both clients fail fast on connection refused, which lets
      * [Application.module] come up cleanly under test without waiting on
      * real external dependencies.
+     *
+     * In FULL/ADMIN modes the auth fail-fast requires a non-empty
+     * `JWT_SECRET` (>= 32 chars) and `ADMIN_PASSWORD`; defaults provided
+     * here satisfy that. In CLIENT mode the values are ignored and may be
+     * overridden to empty by passing the relevant args.
      */
-    private fun bootConfig(mode: String = "full"): MapApplicationConfig {
+    private fun bootConfig(
+        mode: String = "full",
+        jwtSecret: String = "test-jwt-secret-padding-padding-padding",
+        adminPassword: String = "test-admin-password"
+    ): MapApplicationConfig {
         val cfg = MapApplicationConfig()
         cfg.put("ktor.deployment.port", "8080")
         cfg.put("ktor.deployment.host", "0.0.0.0")
@@ -94,8 +110,8 @@ class ApplicationTest {
         cfg.put("app.artemis.brokerUrl", "tcp://127.0.0.1:65535")
         cfg.put("app.artemis.user", "")
         cfg.put("app.artemis.password", "")
-        cfg.put("app.auth.jwtSecret", "")
-        cfg.put("app.auth.adminPassword", "")
+        cfg.put("app.auth.jwtSecret", jwtSecret)
+        cfg.put("app.auth.adminPassword", adminPassword)
         return cfg
     }
 
@@ -300,6 +316,115 @@ class ApplicationTest {
             }
         }
         val response = client.get("/api/admin/ping")
+        assertEquals(HttpStatusCode.NotFound, response.status)
+    }
+
+    @Test
+    fun `application fails to start in FULL mode when JWT_SECRET is missing`() = testApplication {
+        environment { config = bootConfig(mode = "full", jwtSecret = "") }
+        application { module() }
+        val ex = assertFailsWith<IllegalArgumentException> { startApplication() }
+        assertTrue(
+            ex.message?.contains("JWT_SECRET") == true,
+            "expected message to mention JWT_SECRET, got: ${ex.message}"
+        )
+    }
+
+    @Test
+    fun `application fails to start in FULL mode when JWT_SECRET is shorter than 32 chars`() = testApplication {
+        environment { config = bootConfig(mode = "full", jwtSecret = "short-secret") }
+        application { module() }
+        val ex = assertFailsWith<IllegalArgumentException> { startApplication() }
+        assertTrue(
+            ex.message?.contains("JWT_SECRET") == true,
+            "expected message to mention JWT_SECRET, got: ${ex.message}"
+        )
+    }
+
+    @Test
+    fun `application fails to start in ADMIN mode when JWT_SECRET is missing`() = testApplication {
+        environment { config = bootConfig(mode = "admin", jwtSecret = "") }
+        application { module() }
+        val ex = assertFailsWith<IllegalArgumentException> { startApplication() }
+        assertTrue(
+            ex.message?.contains("JWT_SECRET") == true,
+            "expected message to mention JWT_SECRET, got: ${ex.message}"
+        )
+    }
+
+    @Test
+    fun `application fails to start in FULL mode when ADMIN_PASSWORD is missing`() = testApplication {
+        environment { config = bootConfig(mode = "full", adminPassword = "") }
+        application { module() }
+        val ex = assertFailsWith<IllegalArgumentException> { startApplication() }
+        assertTrue(
+            ex.message?.contains("ADMIN_PASSWORD") == true,
+            "expected message to mention ADMIN_PASSWORD, got: ${ex.message}"
+        )
+    }
+
+    @Test
+    fun `application fails to start in ADMIN mode when ADMIN_PASSWORD is missing`() = testApplication {
+        environment { config = bootConfig(mode = "admin", adminPassword = "") }
+        application { module() }
+        val ex = assertFailsWith<IllegalArgumentException> { startApplication() }
+        assertTrue(
+            ex.message?.contains("ADMIN_PASSWORD") == true,
+            "expected message to mention ADMIN_PASSWORD, got: ${ex.message}"
+        )
+    }
+
+    @Test
+    fun `application starts cleanly in CLIENT mode without auth env vars`() = testApplication {
+        environment { config = bootConfig(mode = "client", jwtSecret = "", adminPassword = "") }
+        application { module() }
+
+        val response = client.get("/api/health")
+        assertEquals(HttpStatusCode.OK, response.status)
+    }
+
+    @Test
+    fun `pre-auth WARN line is no longer emitted in any mode`() {
+        val rootLogger = LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME) as Logger
+        val appender = ListAppender<ILoggingEvent>().apply {
+            context = rootLogger.loggerContext
+            start()
+        }
+        rootLogger.addAppender(appender)
+        try {
+            for (mode in listOf("full", "admin", "client")) {
+                appender.list.clear()
+                testApplication {
+                    environment { config = bootConfig(mode = mode) }
+                    application { module() }
+                    client.get("/api/health")
+                }
+                val warnHit = appender.list.any { event ->
+                    event.formattedMessage.contains("Admin routes are unprotected")
+                }
+                assertFalse(warnHit, "WARN line should not be emitted in MODE=$mode")
+            }
+        } finally {
+            rootLogger.detachAppender(appender)
+            appender.stop()
+        }
+    }
+
+    @Test
+    fun `admin route returns 401 without token in FULL mode`() = testApplication {
+        environment { config = bootConfig(mode = "full") }
+        application { module() }
+
+        val response = client.get("/api/admin/documents")
+        assertEquals(HttpStatusCode.Unauthorized, response.status)
+    }
+
+    @Test
+    fun `admin route returns 404 in CLIENT mode regardless of token`() = testApplication {
+        environment { config = bootConfig(mode = "client", jwtSecret = "", adminPassword = "") }
+        application { module() }
+
+        val response = client.get("/api/admin/documents")
         assertEquals(HttpStatusCode.NotFound, response.status)
     }
 }
