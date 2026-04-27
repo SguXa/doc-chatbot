@@ -114,7 +114,17 @@ In `MODE=full` or `MODE=admin`, the following admin endpoints are available:
 
 Supported document formats: `.docx` (Word) and `.pdf`.
 
-Admin routes are unprotected until Phase 4 (auth). Restrict admin-mode deployments to internal networks.
+Admin routes require `Authorization: Bearer <token>`. Obtain a token via `POST /api/auth/login` with the `ADMIN_PASSWORD`. Tokens are valid for 24 hours.
+
+```bash
+BODY=$(jq -nc --arg p "$ADMIN_PASSWORD" '{username:"admin", password:$p}')
+TOKEN=$(curl -s -X POST http://localhost:8080/api/auth/login \
+  -H 'Content-Type: application/json' \
+  -d "$BODY" | jq -r .token)
+curl -X POST http://localhost:8080/api/admin/documents \
+  -H "Authorization: Bearer $TOKEN" \
+  -F file=@manual.pdf
+```
 
 ## Chat
 
@@ -145,6 +155,8 @@ Path-related environment variables derive from a single base (`DATA_PATH`). Sett
 | `ARTEMIS_BROKER_URL` | `tcp://artemis:61616` | JMS broker URL |
 | `ARTEMIS_USER` | (empty) | Broker user; empty = anonymous |
 | `ARTEMIS_PASSWORD` | (empty) | Broker password; empty = anonymous |
+| `JWT_SECRET` | (empty) | HMAC secret for signing admin JWTs (≥32 chars); required in MODE=full/admin |
+| `ADMIN_PASSWORD` | (empty) | Admin password, hashed in memory at startup; required in MODE=full/admin |
 | `LOG_LEVEL` | `INFO` | Logging level |
 | `LOG_FORMAT` | `text` | Log output format (`text` or `json`) |
 

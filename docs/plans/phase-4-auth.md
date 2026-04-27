@@ -343,12 +343,12 @@ Six targeted edits.
 - Modify: `CLAUDE.md`
 - Modify: `README.md`
 
-- [ ] In `CLAUDE.md` "Phase Discipline" section:
-  - [ ] Replace the "Auth is Phase 4 work..." bullet with a past-tense Phase 4 entry: "**Auth (Phase 4):** single admin via JWT. `/api/admin/*` requires `Authorization: Bearer <token>`; `/api/chat/*` and `/api/health/*` are public. Password from `ADMIN_PASSWORD` env (required in `MODE=full`/`MODE=admin`), hashed in memory, not persisted. See [ADR 0005](docs/adr/0005-auth-deferred-out-of-phase-2.md) for the deferral context and [ADR 0007](docs/adr/0007-single-admin-no-persisted-users.md) for the single-admin design."
-  - [ ] Drop the deployment caveat about `MODE=full`/`MODE=admin` requiring internal-network restriction: it is no longer literally true after Phase 4 (admin is now token-protected). Replace with: "`MODE=full` and `MODE=admin` should still be restricted to operator workstations or VPN — chat remains public on the same listener and admin tokens, while signed, do not include rate limiting in Phase 4."
-- [ ] In `README.md`:
-  - [ ] Under "Document Management (Admin)" — change "Admin routes are unprotected until Phase 4 (auth)..." to "Admin routes require `Authorization: Bearer <token>`. Obtain a token via `POST /api/auth/login` with the `ADMIN_PASSWORD`. Tokens are valid for 24 hours."
-  - [ ] Add a short curl example showing the login → admin-call flow. Build the JSON body via `jq` so passwords containing `'`, `"`, `\`, or newlines do not break shell quoting:
+- [x] In `CLAUDE.md` "Phase Discipline" section:
+  - [x] Replace the "Auth is Phase 4 work..." bullet with a past-tense Phase 4 entry: "**Auth (Phase 4):** single admin via JWT. `/api/admin/*` requires `Authorization: Bearer <token>`; `/api/chat/*` and `/api/health/*` are public. Password from `ADMIN_PASSWORD` env (required in `MODE=full`/`MODE=admin`), hashed in memory, not persisted. See [ADR 0005](docs/adr/0005-auth-deferred-out-of-phase-2.md) for the deferral context and [ADR 0007](docs/adr/0007-single-admin-no-persisted-users.md) for the single-admin design."
+  - [x] Drop the deployment caveat about `MODE=full`/`MODE=admin` requiring internal-network restriction: it is no longer literally true after Phase 4 (admin is now token-protected). Replace with: "`MODE=full` and `MODE=admin` should still be restricted to operator workstations or VPN — chat remains public on the same listener and admin tokens, while signed, do not include rate limiting in Phase 4."
+- [x] In `README.md`:
+  - [x] Under "Document Management (Admin)" — change "Admin routes are unprotected until Phase 4 (auth)..." to "Admin routes require `Authorization: Bearer <token>`. Obtain a token via `POST /api/auth/login` with the `ADMIN_PASSWORD`. Tokens are valid for 24 hours."
+  - [x] Add a short curl example showing the login → admin-call flow. Build the JSON body via `jq` so passwords containing `'`, `"`, `\`, or newlines do not break shell quoting:
     ```bash
     BODY=$(jq -nc --arg p "$ADMIN_PASSWORD" '{username:"admin", password:$p}')
     TOKEN=$(curl -s -X POST http://localhost:8080/api/auth/login \
@@ -358,7 +358,7 @@ Six targeted edits.
       -H "Authorization: Bearer $TOKEN" \
       -F file=@manual.pdf
     ```
-  - [ ] In the Configuration table (the `JWT_SECRET` and `ADMIN_PASSWORD` rows), add a final column note: "required in MODE=full/admin"
+  - [x] In the Configuration table (the `JWT_SECRET` and `ADMIN_PASSWORD` rows), add a final column note: "required in MODE=full/admin"
 
 ### Task 14: Verify acceptance criteria
 
