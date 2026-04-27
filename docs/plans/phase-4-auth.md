@@ -101,19 +101,19 @@ A thin wrapper over `at.favre.lib:bcrypt`. Stateless `object` since there is no 
 
 Encapsulates HS256 signing/verification with fixed issuer and 24 h TTL. Operates over `com.auth0.jwt.JWT` (transitively from `ktor-server-auth-jwt`).
 
-- [ ] Constructor `JwtConfig(secret: String, issuer: String = "aos-chatbot", ttlSeconds: Long = 86_400, clock: Clock = Clock.systemUTC())`
-- [ ] `init { require(secret.length >= 32) { "JWT secret must be >= 32 chars" } }` — internal invariant. The user-facing fail-fast lives in `Application.module()` (Task 7) which has access to mode info and produces a clearer error message; this `init` check is defense-in-depth and is not exercised in user-facing tests
-- [ ] `fun sign(): String` — issues a token with `iss=issuer`, `sub="admin"`, `iat=clock.instant()`, `exp=iat+ttl`. Returns the signed token string
-- [ ] `fun verify(token: String): Boolean` — uses `JWT.require(Algorithm.HMAC256(secret)).withIssuer(issuer).build().verify(token)`; catches `JWTVerificationException` and returns `false`. Never throws
-- [ ] `fun verifier(): com.auth0.jwt.interfaces.JWTVerifier` — declared return type is explicit (no inference) so the public surface is obvious; returns the configured verifier so `Application.kt`'s `install(Authentication) { jwt(...) { verifier(jwtConfig.verifier()) } }` can plug in directly
-- [ ] KDoc: deliberately omits `aud`, `role`, `nbf`. Only signature + issuer + expiry are checked. **No clock leeway** is configured (`acceptLeeway` is left at the `java-jwt` default of 0 seconds); deployments with skewed clocks must run NTP. This must be stated explicitly so future operators know not to expect skew tolerance
-- [ ] Test: `sign` then `verify` round-trip returns true on the same instance
-- [ ] Test: `verify` returns false on a token signed with a different secret
-- [ ] Test: `verify` returns false on a token with a different issuer
-- [ ] Test: `verify` returns false on an expired token (use a `Clock.fixed()` set in the past for signing, then `Clock.systemUTC()` for verification)
-- [ ] Test: `verify` returns false on garbage strings (`""`, `"not-a-jwt"`, `"a.b.c"` with bogus payload)
-- [ ] Test: constructor throws on a 31-char secret; accepts 32-char
-- [ ] Verify: `cd backend && ./gradlew test`
+- [x] Constructor `JwtConfig(secret: String, issuer: String = "aos-chatbot", ttlSeconds: Long = 86_400, clock: Clock = Clock.systemUTC())`
+- [x] `init { require(secret.length >= 32) { "JWT secret must be >= 32 chars" } }` — internal invariant. The user-facing fail-fast lives in `Application.module()` (Task 7) which has access to mode info and produces a clearer error message; this `init` check is defense-in-depth and is not exercised in user-facing tests
+- [x] `fun sign(): String` — issues a token with `iss=issuer`, `sub="admin"`, `iat=clock.instant()`, `exp=iat+ttl`. Returns the signed token string
+- [x] `fun verify(token: String): Boolean` — uses `JWT.require(Algorithm.HMAC256(secret)).withIssuer(issuer).build().verify(token)`; catches `JWTVerificationException` and returns `false`. Never throws
+- [x] `fun verifier(): com.auth0.jwt.interfaces.JWTVerifier` — declared return type is explicit (no inference) so the public surface is obvious; returns the configured verifier so `Application.kt`'s `install(Authentication) { jwt(...) { verifier(jwtConfig.verifier()) } }` can plug in directly
+- [x] KDoc: deliberately omits `aud`, `role`, `nbf`. Only signature + issuer + expiry are checked. **No clock leeway** is configured (`acceptLeeway` is left at the `java-jwt` default of 0 seconds); deployments with skewed clocks must run NTP. This must be stated explicitly so future operators know not to expect skew tolerance
+- [x] Test: `sign` then `verify` round-trip returns true on the same instance
+- [x] Test: `verify` returns false on a token signed with a different secret
+- [x] Test: `verify` returns false on a token with a different issuer
+- [x] Test: `verify` returns false on an expired token (use a `Clock.fixed()` set in the past for signing, then `Clock.systemUTC()` for verification)
+- [x] Test: `verify` returns false on garbage strings (`""`, `"not-a-jwt"`, `"a.b.c"` with bogus payload)
+- [x] Test: constructor throws on a 31-char secret; accepts 32-char
+- [x] Verify: `cd backend && ./gradlew test`
 
 ### Task 5: Implement AuthService
 
