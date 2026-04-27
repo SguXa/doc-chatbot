@@ -234,23 +234,23 @@ Bring up the auth object graph in `FULL`/`ADMIN`, wrap admin routes in `authenti
 
 The single most important test in Phase 4 — implements ADR 0005 step 4 ("Add integration tests proving every protected route returns 401 without a valid token"). Boots a `TestApplication` in `MODE=full` with the real auth wiring; mocks Ollama/Artemis collaborators that admin handlers transitively touch (via MockK on `DocumentService`, `EmbeddingBackfillJob`, `QueueService` constructor deps) so admin handlers can return business responses without external services. **Not** named `*IntegrationTest` and **not** tagged `@Tag("integration")` — runs in the default suite (the project reserves the "Integration" suffix and tag for tests that hit a real Ollama; this test exercises only auth wiring and Ktor).
 
-- [ ] Test: `POST /api/auth/login` with correct password → 200, captures `token` for reuse
-- [ ] **Admin route inventory must be data-driven, not hard-coded**: at the top of the test class, declare `val adminRoutes = listOf(HttpMethod.Post to "/api/admin/documents", HttpMethod.Get to "/api/admin/documents", HttpMethod.Delete to "/api/admin/documents/1", HttpMethod.Post to "/api/admin/reindex")`. Each negative-token test case iterates this list. A KDoc comment instructs future contributors: "If you add a new admin route, add it to this list — otherwise this test will not protect it." This guards against silent bypass when new admin routes land
-- [ ] Test: every admin endpoint without `Authorization` header → 401 (iterate `adminRoutes`)
-- [ ] Test: every admin endpoint with `Authorization: Bearer <expired-token>` → 401 (use `JwtConfig` with `Clock.fixed()` set far in the past to synthesize)
-- [ ] Test: every admin endpoint with `Authorization: Bearer not.a.jwt` → 401
-- [ ] Test: every admin endpoint with `Authorization: Bearer <token-signed-by-different-secret>` → 401
-- [ ] Test: every admin endpoint with valid token → response is NOT 401 (may be 4xx/5xx by business logic — e.g., 415 for missing multipart, 503 for backfill running — but NOT 401)
-- [ ] Test: chat/health/auth public surface, no token attached:
-  - [ ] `GET /api/health` → 200
-  - [ ] `GET /api/health/ready` → 200 or 503 (business; mocks decide), never 401
-  - [ ] `POST /api/chat {valid body}` → not 401 (may be 503 `not_ready` per mocks, or 200 SSE per ChatRoutes contract)
-  - [ ] `POST /api/auth/login {wrong password}` → 401 with body `error=invalid_credentials` (auth domain 401, not middleware 401 — both have status 401 but the body shape differs; assert the discriminator)
-  - [ ] `POST /api/auth/logout` → 204
-- [ ] Test (regression guard): `POST /api/chat` with `Authorization: Bearer not.a.jwt` → still NOT 401 — chat ignores the Authorization header completely. This catches a future change that accidentally wires chat into `authenticate("jwt-admin")`
-- [ ] Test: in `MODE=client`, `/api/auth/login` is not registered → 404; `/api/admin/*` is not registered → 404. This test sets up a separate `TestApplication` with `MODE=client` HOCON
-- [ ] Test: in `MODE=admin`, `/api/chat` is not registered → 404; `/api/admin/*` is registered AND requires auth
-- [ ] Verify: `cd backend && ./gradlew test`
+- [x] Test: `POST /api/auth/login` with correct password → 200, captures `token` for reuse
+- [x] **Admin route inventory must be data-driven, not hard-coded**: at the top of the test class, declare `val adminRoutes = listOf(HttpMethod.Post to "/api/admin/documents", HttpMethod.Get to "/api/admin/documents", HttpMethod.Delete to "/api/admin/documents/1", HttpMethod.Post to "/api/admin/reindex")`. Each negative-token test case iterates this list. A KDoc comment instructs future contributors: "If you add a new admin route, add it to this list — otherwise this test will not protect it." This guards against silent bypass when new admin routes land
+- [x] Test: every admin endpoint without `Authorization` header → 401 (iterate `adminRoutes`)
+- [x] Test: every admin endpoint with `Authorization: Bearer <expired-token>` → 401 (use `JwtConfig` with `Clock.fixed()` set far in the past to synthesize)
+- [x] Test: every admin endpoint with `Authorization: Bearer not.a.jwt` → 401
+- [x] Test: every admin endpoint with `Authorization: Bearer <token-signed-by-different-secret>` → 401
+- [x] Test: every admin endpoint with valid token → response is NOT 401 (may be 4xx/5xx by business logic — e.g., 415 for missing multipart, 503 for backfill running — but NOT 401)
+- [x] Test: chat/health/auth public surface, no token attached:
+  - [x] `GET /api/health` → 200
+  - [x] `GET /api/health/ready` → 200 or 503 (business; mocks decide), never 401
+  - [x] `POST /api/chat {valid body}` → not 401 (may be 503 `not_ready` per mocks, or 200 SSE per ChatRoutes contract)
+  - [x] `POST /api/auth/login {wrong password}` → 401 with body `error=invalid_credentials` (auth domain 401, not middleware 401 — both have status 401 but the body shape differs; assert the discriminator)
+  - [x] `POST /api/auth/logout` → 204
+- [x] Test (regression guard): `POST /api/chat` with `Authorization: Bearer not.a.jwt` → still NOT 401 — chat ignores the Authorization header completely. This catches a future change that accidentally wires chat into `authenticate("jwt-admin")`
+- [x] Test: in `MODE=client`, `/api/auth/login` is not registered → 404; `/api/admin/*` is not registered → 404. This test sets up a separate `TestApplication` with `MODE=client` HOCON
+- [x] Test: in `MODE=admin`, `/api/chat` is not registered → 404; `/api/admin/*` is registered AND requires auth
+- [x] Verify: `cd backend && ./gradlew test`
 
 ### Task 9: V005 migration — DROP TABLE users
 
