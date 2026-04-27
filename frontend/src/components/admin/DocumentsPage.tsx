@@ -4,6 +4,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { parseApiError } from '@/lib/errors'
 import { useReadyStatus } from '@/hooks/useReadyStatus'
 import { DocumentTable } from './DocumentTable'
+import { DocumentUpload } from './DocumentUpload'
 import { ReindexButton } from './ReindexButton'
 
 function DocumentsPage() {
@@ -25,6 +26,8 @@ function DocumentsPage() {
         </div>
         <ReindexButton />
       </div>
+
+      <DocumentUpload isReindexing={isRunning} />
 
       {isLoading && <p className="text-sm text-muted-foreground">Loading documents…</p>}
 

@@ -308,36 +308,36 @@ Adds the two mutation flows. Both depend on the readiness probe — `useReadySta
 
 The riskiest task in this phase. Synchronous backend POST that may block ~60s on a real Ollama call requires deliberate UX. Most valuable test: every error discriminator from ARCHITECTURE.md §7.2 maps to a comprehensible UX.
 
-- [ ] `DocumentUpload.tsx`:
-  - [ ] Drag-and-drop zone (shadcn-style `Card` with `dashed` border; `onDragEnter` / `onDragOver` / `onDragLeave` / `onDrop` handlers)
-  - [ ] Click-to-upload fallback: hidden `<input type="file" accept=".docx,.pdf">` triggered by clicking the zone
-  - [ ] Reject files with extension other than `.docx`/`.pdf` client-side (no network round-trip) — shows message "Only .docx and .pdf are supported"
-  - [ ] Upload via `XMLHttpRequest` (NOT `fetch`) to get `xhr.upload.onprogress` events. Set `Authorization: Bearer ${token}` from `useAuthStore.getState().token`. Send `FormData` with single field `file`
-  - [ ] State machine: `idle` → `uploading (progress: 0..100)` → `parsing (indeterminate)` → `success | error`. Stage 2 starts on `xhr.upload.onload` (all bytes flushed) — at that point we wait on `xhr.onload` (server response)
-  - [ ] On 401 (token expired mid-upload): mirror `apiFetch` behavior — call `useAuthStore.getState().logout()` and let `ProtectedRoute` redirect on next render. The XHR escape hatch must NOT bypass the 401 contract
-  - [ ] On 201: parse response, toast "Uploaded", invalidate `['documents']`, return to `idle`
-  - [ ] On any other error: build a `Response`-like object from `xhr.response` and `xhr.status`, parse JSON if possible, construct an `ApiError` with body, run `parseApiError`, render the message inline + as a toast. For `kind === 'duplicate'`, render an inline shadcn `Dialog` showing `existing.filename` + `existing.indexedAt` + a "Got it" close button (no auto-delete — operator decides)
-  - [ ] Disabled when `useReadyStatus().isRunning` is true (tooltip "Reindex is running"); disabled while another upload is in flight
-  - [ ] Visual: stage 1 shows a determinate progress bar; stage 2 shows an indeterminate spinner with text "Parsing document…"; on error shows the message in a red panel that doesn't auto-dismiss (operator must dismiss explicitly so they can read it)
-- [ ] `DocumentsPage.tsx`: render `<DocumentUpload />` above the table; pass `isRunning` for the disable wiring
-- [ ] Tests:
-  - [ ] Drop a `.exe` file → no XHR fires, error message "Only .docx and .pdf are supported"
-  - [ ] Drop a `.docx` file → XHR opens with the right URL, method `POST`, sends `multipart/form-data` with field `file`, includes `Authorization` header
-  - [ ] Stage transition: simulate `xhr.upload.onprogress` (50%, 100%) → DOM shows the progress bar at the right value; simulate `xhr.upload.onload` → DOM switches to "Parsing document…"
-  - [ ] On 201: toast called with success message; query invalidation called; control returns to idle state
-  - [ ] **Error matrix — one test per discriminator** (DocumentUpload's most valuable test set):
-    - [ ] 400 `invalid_upload` `unsupported_extension` → shows "Only .docx and .pdf are supported"
-    - [ ] 400 `invalid_upload` `malformed_multipart` → "File is corrupted, please retry"
-    - [ ] 400 `unreadable_document` (any reason) → "Could not read file: {body.message}" (server-supplied message is English per `AdminRoutes.kt:160`)
-    - [ ] 400 `empty_content` → "No extractable text in file"
-    - [ ] 409 `duplicate_document` → dialog opens with `existing.filename` and `existing.indexedAt` rendered (full `Document` object on `body.existing` per `AdminResponses.kt:10`)
-    - [ ] 413 `invalid_upload` `file_too_large` → "File exceeds 100 MB limit"
-    - [ ] 415 `invalid_upload` `invalid_content_type` → defensive message ("Invalid request format")
-    - [ ] 503 `ollama_unavailable` → "Ollama is unavailable. Upload was rolled back, retry shortly."
-    - [ ] 503 `reindex_in_progress` → "Reindex is running, retry in a minute."
-    - [ ] Unknown 500 with no body → generic "Server error"
-  - [ ] Disabled while `isRunning=true`: drop is a no-op
-- [ ] Verify: `cd frontend && npm test`
+- [x] `DocumentUpload.tsx`:
+  - [x] Drag-and-drop zone (shadcn-style `Card` with `dashed` border; `onDragEnter` / `onDragOver` / `onDragLeave` / `onDrop` handlers)
+  - [x] Click-to-upload fallback: hidden `<input type="file" accept=".docx,.pdf">` triggered by clicking the zone
+  - [x] Reject files with extension other than `.docx`/`.pdf` client-side (no network round-trip) — shows message "Only .docx and .pdf are supported"
+  - [x] Upload via `XMLHttpRequest` (NOT `fetch`) to get `xhr.upload.onprogress` events. Set `Authorization: Bearer ${token}` from `useAuthStore.getState().token`. Send `FormData` with single field `file`
+  - [x] State machine: `idle` → `uploading (progress: 0..100)` → `parsing (indeterminate)` → `success | error`. Stage 2 starts on `xhr.upload.onload` (all bytes flushed) — at that point we wait on `xhr.onload` (server response)
+  - [x] On 401 (token expired mid-upload): mirror `apiFetch` behavior — call `useAuthStore.getState().logout()` and let `ProtectedRoute` redirect on next render. The XHR escape hatch must NOT bypass the 401 contract
+  - [x] On 201: parse response, toast "Uploaded", invalidate `['documents']`, return to `idle`
+  - [x] On any other error: build a `Response`-like object from `xhr.response` and `xhr.status`, parse JSON if possible, construct an `ApiError` with body, run `parseApiError`, render the message inline + as a toast. For `kind === 'duplicate'`, render an inline shadcn `Dialog` showing `existing.filename` + `existing.indexedAt` + a "Got it" close button (no auto-delete — operator decides)
+  - [x] Disabled when `useReadyStatus().isRunning` is true (tooltip "Reindex is running"); disabled while another upload is in flight
+  - [x] Visual: stage 1 shows a determinate progress bar; stage 2 shows an indeterminate spinner with text "Parsing document…"; on error shows the message in a red panel that doesn't auto-dismiss (operator must dismiss explicitly so they can read it)
+- [x] `DocumentsPage.tsx`: render `<DocumentUpload />` above the table; pass `isRunning` for the disable wiring
+- [x] Tests:
+  - [x] Drop a `.exe` file → no XHR fires, error message "Only .docx and .pdf are supported"
+  - [x] Drop a `.docx` file → XHR opens with the right URL, method `POST`, sends `multipart/form-data` with field `file`, includes `Authorization` header
+  - [x] Stage transition: simulate `xhr.upload.onprogress` (50%, 100%) → DOM shows the progress bar at the right value; simulate `xhr.upload.onload` → DOM switches to "Parsing document…"
+  - [x] On 201: toast called with success message; query invalidation called; control returns to idle state
+  - [x] **Error matrix — one test per discriminator** (DocumentUpload's most valuable test set):
+    - [x] 400 `invalid_upload` `unsupported_extension` → shows "Only .docx and .pdf are supported"
+    - [x] 400 `invalid_upload` `malformed_multipart` → "File is corrupted, please retry"
+    - [x] 400 `unreadable_document` (any reason) → "Could not read file: {body.message}" (server-supplied message is English per `AdminRoutes.kt:160`)
+    - [x] 400 `empty_content` → "No extractable text in file"
+    - [x] 409 `duplicate_document` → dialog opens with `existing.filename` and `existing.indexedAt` rendered (full `Document` object on `body.existing` per `AdminResponses.kt:10`)
+    - [x] 413 `invalid_upload` `file_too_large` → "File exceeds 100 MB limit"
+    - [x] 415 `invalid_upload` `invalid_content_type` → defensive message ("Invalid request format")
+    - [x] 503 `ollama_unavailable` → "Ollama is unavailable. Upload was rolled back, retry shortly."
+    - [x] 503 `reindex_in_progress` → "Reindex is running, retry in a minute."
+    - [x] Unknown 500 with no body → generic non-mapped error message (lib/errors falls back to `error.message`, here "API error: 500")
+  - [x] Disabled while `isRunning=true`: drop is a no-op
+- [x] Verify: `cd frontend && npm test`
 
 ### Task 11: `SystemPromptPage`
 
