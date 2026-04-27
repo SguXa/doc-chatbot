@@ -82,16 +82,16 @@ Introduce JWT-based authentication for the admin surface. A single administrator
 
 A thin wrapper over `at.favre.lib:bcrypt`. Stateless `object` since there is no per-instance state.
 
-- [ ] Create `object PasswordHasher`
-- [ ] `fun hash(password: String, cost: Int = 12): String` — returns the modular-crypt-format string (`$2a$12$...`); throws `IllegalArgumentException` if `password.isBlank()`
-- [ ] `fun verify(password: String, hash: String): Boolean` — uses `BCrypt.verifyer().verify(password.toCharArray(), hash).verified`; never throws on bad input, returns false instead
-- [ ] KDoc: cost=12 ≈ 100 ms on dev hardware; that is the budget per login. No need to expose cost configuration in Phase 4 (single-admin, low login frequency)
-- [ ] Test: `hash` produces a non-empty string starting with `$2a$12$`
-- [ ] Test: `hash` + `verify` round-trip succeeds for a non-trivial password
-- [ ] Test: `verify` returns false for the wrong password
-- [ ] Test: `verify` returns false on a malformed hash string instead of throwing
-- [ ] Test: `hash("")` throws `IllegalArgumentException`
-- [ ] Verify: `cd backend && ./gradlew test`
+- [x] Create `object PasswordHasher`
+- [x] `fun hash(password: String, cost: Int = 12): String` — returns the modular-crypt-format string (`$2a$12$...`); throws `IllegalArgumentException` if `password.isBlank()`
+- [x] `fun verify(password: String, hash: String): Boolean` — uses `BCrypt.verifyer().verify(password.toCharArray(), hash).verified`; never throws on bad input, returns false instead
+- [x] KDoc: cost=12 ≈ 100 ms on dev hardware; that is the budget per login. No need to expose cost configuration in Phase 4 (single-admin, low login frequency)
+- [x] Test: `hash` produces a non-empty string starting with `$2a$12$`
+- [x] Test: `hash` + `verify` round-trip succeeds for a non-trivial password
+- [x] Test: `verify` returns false for the wrong password
+- [x] Test: `verify` returns false on a malformed hash string instead of throwing
+- [x] Test: `hash("")` throws `IllegalArgumentException`
+- [x] Verify: `cd backend && ./gradlew test`
 
 ### Task 4: Implement JwtConfig
 
