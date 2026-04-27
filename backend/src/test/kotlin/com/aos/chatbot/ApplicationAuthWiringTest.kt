@@ -63,7 +63,9 @@ class ApplicationAuthWiringTest {
         HttpMethod.Post to "/api/admin/documents",
         HttpMethod.Get to "/api/admin/documents",
         HttpMethod.Delete to "/api/admin/documents/1",
-        HttpMethod.Post to "/api/admin/reindex"
+        HttpMethod.Post to "/api/admin/reindex",
+        HttpMethod.Get to "/api/config/system-prompt",
+        HttpMethod.Put to "/api/config/system-prompt"
     )
 
     @BeforeEach

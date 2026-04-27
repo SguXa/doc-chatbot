@@ -69,6 +69,44 @@ class ConfigRepositoryTest {
         assertTrue(secondUpdatedAt > firstUpdatedAt)
     }
 
+    @Test
+    fun `getWithUpdatedAt returns row for seeded system_prompt`() {
+        val entry = repo.getWithUpdatedAt("system_prompt")
+        assertNotNull(entry)
+        assertTrue(entry.value.startsWith("\""), "value should be JSON-encoded string: ${entry.value}")
+        assertTrue(entry.updatedAt.isNotEmpty(), "updatedAt must be a non-empty timestamp")
+    }
+
+    @Test
+    fun `getWithUpdatedAt returns null for missing key`() {
+        assertNull(repo.getWithUpdatedAt("missing_key"))
+    }
+
+    @Test
+    fun `getWithUpdatedAt reflects put writes value and timestamp`() {
+        repo.put("custom_key", "\"hello\"")
+        val entry = repo.getWithUpdatedAt("custom_key")
+        assertNotNull(entry)
+        assertEquals("\"hello\"", entry.value)
+        assertTrue(entry.updatedAt.isNotEmpty())
+    }
+
+    @Test
+    fun `getWithUpdatedAt timestamp updates after second put`() {
+        repo.put("custom_key", "\"first\"")
+        val first = repo.getWithUpdatedAt("custom_key")
+        assertNotNull(first)
+
+        Thread.sleep(1100)
+
+        repo.put("custom_key", "\"second\"")
+        val second = repo.getWithUpdatedAt("custom_key")
+        assertNotNull(second)
+        assertEquals("\"second\"", second.value)
+        assertNotEquals(first.updatedAt, second.updatedAt)
+        assertTrue(second.updatedAt > first.updatedAt)
+    }
+
     private fun readUpdatedAt(key: String): String? {
         conn.prepareStatement("SELECT updated_at FROM config WHERE key = ?").use { stmt ->
             stmt.setString(1, key)

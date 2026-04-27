@@ -2,6 +2,9 @@ package com.aos.chatbot.db.repositories
 
 import java.sql.Connection
 
+/** A row from the `config` table, including its update timestamp. */
+data class ConfigEntry(val value: String, val updatedAt: String)
+
 /**
  * Repository for the `config` key-value table.
  *
@@ -23,6 +26,27 @@ class ConfigRepository(private val conn: Connection) {
             stmt.setString(1, key)
             val rs = stmt.executeQuery()
             return if (rs.next()) rs.getString("value") else null
+        }
+    }
+
+    /**
+     * Returns both `value` and `updated_at` for [key], or `null` if no row
+     * exists. Used by the config API where the response contract exposes the
+     * timestamp; [get] stays as the lean read path used by [ChatService].
+     *
+     * `updated_at` is read verbatim from the SQLite `TIMESTAMP` column as the
+     * stored ISO-like string (`YYYY-MM-DD HH:MM:SS`).
+     */
+    fun getWithUpdatedAt(key: String): ConfigEntry? {
+        val sql = "SELECT value, updated_at FROM config WHERE key = ?"
+        conn.prepareStatement(sql).use { stmt ->
+            stmt.setString(1, key)
+            val rs = stmt.executeQuery()
+            return if (rs.next()) {
+                ConfigEntry(value = rs.getString("value"), updatedAt = rs.getString("updated_at"))
+            } else {
+                null
+            }
         }
     }
 

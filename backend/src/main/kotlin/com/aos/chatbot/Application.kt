@@ -11,6 +11,7 @@ import com.aos.chatbot.parsers.aos.AosParser
 import com.aos.chatbot.routes.adminRoutes
 import com.aos.chatbot.routes.authRoutes
 import com.aos.chatbot.routes.chatRoutes
+import com.aos.chatbot.routes.configRoutes
 import com.aos.chatbot.routes.healthRoutes
 import com.aos.chatbot.services.AuthService
 import com.aos.chatbot.services.ChatResponseBus
@@ -217,6 +218,7 @@ fun Application.module() {
                     appConfig.documentsPath,
                     appConfig.imagesPath
                 )
+                configRoutes(database)
             },
             chatRegistrar = {
                 chatRoutes(queueService, responseBus, backfillJob)

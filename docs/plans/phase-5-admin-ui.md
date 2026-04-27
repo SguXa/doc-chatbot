@@ -94,25 +94,25 @@ shadcn-init writes a few files (`components.json`, base CSS variables, the `cn` 
 
 Implements `GET /api/config/system-prompt` and `PUT /api/config/system-prompt` from ARCHITECTURE.md §7.3 / §11.2. `system_prompt` value is stored as a JSON-encoded string in `config.value` (V004 layout); GET decodes, PUT encodes.
 
-- [ ] Add `data class ConfigEntry(val value: String, val updatedAt: String)` and an instance method `fun getWithUpdatedAt(key: String): ConfigEntry?` on `ConfigRepository` (NOT a top-level extension function — the existing `private val conn` is needed). Implementation: `SELECT value, updated_at FROM config WHERE key = ?`. Return `null` for missing row. `updated_at` is read as a String from SQLite (ISO-8601 timestamp form `YYYY-MM-DD HH:MM:SS`)
-- [ ] Create `ConfigRequests.kt` with `@Serializable data class SystemPromptResponse(val prompt: String, val updatedAt: String)`, `@Serializable data class UpdateSystemPromptRequest(val prompt: String)`, `@Serializable data class InvalidConfigRequestResponse(val error: String = "invalid_request", val reason: String)`
-- [ ] Create `ConfigRoutes.kt` with `fun Route.configRoutes(databaseConfig: DatabaseConfig)` extension:
-  - [ ] `GET /api/config/system-prompt`: open a connection, call `ConfigRepository(conn).getWithUpdatedAt(SYSTEM_PROMPT_KEY)`, JSON-decode the value, respond 200 with `SystemPromptResponse(prompt, updatedAt)`. If repo returns `null` (cannot happen post-V004, but defensive), respond 500 with stable error `{"error": "config_missing"}` so the test environment fails loudly rather than the user seeing an empty editor
-  - [ ] `PUT /api/config/system-prompt`: deserialize body — on failure 400 `{"error": "invalid_request", "reason": "malformed_body"}`. Validate `prompt.isNotBlank()` → otherwise 400 `reason="empty_prompt"`. Validate `prompt.length <= 8000` → otherwise 400 `reason="prompt_too_long"`. JSON-encode the prompt and call `ConfigRepository(conn).put(SYSTEM_PROMPT_KEY, jsonEncoded)`. Respond 200 with the freshly read `SystemPromptResponse`
-  - [ ] `SYSTEM_PROMPT_KEY` constant pulled from `ChatService.SYSTEM_PROMPT_KEY` (already defined there) to keep one source of truth
-- [ ] Wire in `Application.kt`: only in `MODE=full`/`MODE=admin`, register `configRoutes(databaseConfig)` inside `authenticate("jwt-admin") { ... }` — same provider that protects `/api/admin/*`. Confirm by browsing the existing `registerModeGatedRoutes` call site (Phase 4 introduced the helper) and add config routes alongside admin routes
-- [ ] `ConfigRepositoryTest`: `getWithUpdatedAt` returns the row; `getWithUpdatedAt` returns `null` for missing key; existing `get`/`put` tests stay green (don't break what works)
-- [ ] `ConfigRoutesTest` with `TestApplication`:
-  - [ ] GET with valid token → 200, decoded `SystemPromptResponse` has the V004-seeded default prompt and a non-empty `updatedAt`
-  - [ ] GET without token → 401 (auth wrapping proof)
-  - [ ] PUT with valid token and `{"prompt": "new prompt"}` → 200, response reflects the new prompt; subsequent GET returns the new prompt
-  - [ ] PUT with empty prompt → 400, `reason=empty_prompt`
-  - [ ] PUT with 8001-char prompt → 400, `reason=prompt_too_long`
-  - [ ] PUT with malformed JSON body → 400, `reason=malformed_body`
-  - [ ] PUT without token → 401
-  - [ ] After PUT, `ChatService.readSystemPrompt(conn)` returns the new value (cross-check: same DB read path that production chat uses)
-- [ ] Update `ApplicationAuthWiringTest.adminRoutes` data-driven list: append `HttpMethod.Get to "/api/config/system-prompt"` and `HttpMethod.Put to "/api/config/system-prompt"`. The existing without-token / expired-token / wrong-secret iterators now exercise these routes too — no new test methods needed
-- [ ] Verify: `cd backend && ./gradlew test` and `cd backend && ./gradlew build`
+- [x] Add `data class ConfigEntry(val value: String, val updatedAt: String)` and an instance method `fun getWithUpdatedAt(key: String): ConfigEntry?` on `ConfigRepository` (NOT a top-level extension function — the existing `private val conn` is needed). Implementation: `SELECT value, updated_at FROM config WHERE key = ?`. Return `null` for missing row. `updated_at` is read as a String from SQLite (ISO-8601 timestamp form `YYYY-MM-DD HH:MM:SS`)
+- [x] Create `ConfigRequests.kt` with `@Serializable data class SystemPromptResponse(val prompt: String, val updatedAt: String)`, `@Serializable data class UpdateSystemPromptRequest(val prompt: String)`, `@Serializable data class InvalidConfigRequestResponse(val error: String = "invalid_request", val reason: String)`
+- [x] Create `ConfigRoutes.kt` with `fun Route.configRoutes(database: Database)` extension (signature uses the existing `Database` injection pattern, not `DatabaseConfig` — adminRoutes/healthRoutes already take `Database`):
+  - [x] `GET /api/config/system-prompt`: open a connection, call `ConfigRepository(conn).getWithUpdatedAt(SYSTEM_PROMPT_KEY)`, JSON-decode the value, respond 200 with `SystemPromptResponse(prompt, updatedAt)`. If repo returns `null` (cannot happen post-V004, but defensive), respond 500 with stable error `{"error": "config_missing"}` so the test environment fails loudly rather than the user seeing an empty editor
+  - [x] `PUT /api/config/system-prompt`: deserialize body — on failure 400 `{"error": "invalid_request", "reason": "malformed_body"}`. Validate `prompt.isNotBlank()` → otherwise 400 `reason="empty_prompt"`. Validate `prompt.length <= 8000` → otherwise 400 `reason="prompt_too_long"`. JSON-encode the prompt and call `ConfigRepository(conn).put(SYSTEM_PROMPT_KEY, jsonEncoded)`. Respond 200 with the freshly read `SystemPromptResponse`
+  - [x] `SYSTEM_PROMPT_KEY` constant pulled from `ChatService.SYSTEM_PROMPT_KEY` (already defined there) to keep one source of truth
+- [x] Wire in `Application.kt`: only in `MODE=full`/`MODE=admin`, register `configRoutes(database)` inside `authenticate("jwt-admin") { ... }` — same provider that protects `/api/admin/*`. Confirm by browsing the existing `registerModeGatedRoutes` call site (Phase 4 introduced the helper) and add config routes alongside admin routes
+- [x] `ConfigRepositoryTest`: `getWithUpdatedAt` returns the row; `getWithUpdatedAt` returns `null` for missing key; existing `get`/`put` tests stay green (don't break what works)
+- [x] `ConfigRoutesTest` with `TestApplication`:
+  - [x] GET with valid token → 200, decoded `SystemPromptResponse` has the V004-seeded default prompt and a non-empty `updatedAt` (auth-token coverage handled in `ApplicationAuthWiringTest`; this test mounts routes directly per `AdminRoutesTest` convention)
+  - [x] GET without token → 401 (auth wrapping proof — exercised by `ApplicationAuthWiringTest.adminRoutes` data-driven matrix)
+  - [x] PUT with valid token and `{"prompt": "new prompt"}` → 200, response reflects the new prompt; subsequent GET returns the new prompt
+  - [x] PUT with empty prompt → 400, `reason=empty_prompt`
+  - [x] PUT with 8001-char prompt → 400, `reason=prompt_too_long`
+  - [x] PUT with malformed JSON body → 400, `reason=malformed_body`
+  - [x] PUT without token → 401 (covered by `ApplicationAuthWiringTest`)
+  - [x] After PUT, `ChatService.readSystemPrompt(conn)` returns the new value (cross-check: same DB read path that production chat uses)
+- [x] Update `ApplicationAuthWiringTest.adminRoutes` data-driven list: append `HttpMethod.Get to "/api/config/system-prompt"` and `HttpMethod.Put to "/api/config/system-prompt"`. The existing without-token / expired-token / wrong-secret iterators now exercise these routes too — no new test methods needed
+- [x] Verify: `cd backend && ./gradlew test` and `cd backend && ./gradlew build`
 
 ### Task 3: Frontend API client — auth injection, 401 handling, apiPut/apiDelete
 
