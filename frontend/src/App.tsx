@@ -5,6 +5,7 @@ import { LoginForm } from '@/components/auth/LoginForm'
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute'
 import { AdminLayout } from '@/components/admin/AdminLayout'
 import { DocumentsPage } from '@/components/admin/DocumentsPage'
+import { SystemPromptPage } from '@/components/admin/SystemPromptPage'
 
 interface HealthResponse {
   status: string
@@ -38,10 +39,6 @@ function HomePage() {
   )
 }
 
-function AdminSystemPromptPlaceholder() {
-  return <div>Admin System Prompt</div>
-}
-
 function App() {
   return (
     <Routes>
@@ -51,7 +48,7 @@ function App() {
         <Route element={<AdminLayout />}>
           <Route index element={<Navigate to="/admin/documents" replace />} />
           <Route path="documents" element={<DocumentsPage />} />
-          <Route path="system-prompt" element={<AdminSystemPromptPlaceholder />} />
+          <Route path="system-prompt" element={<SystemPromptPage />} />
         </Route>
       </Route>
     </Routes>

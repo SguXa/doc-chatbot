@@ -350,28 +350,28 @@ The riskiest task in this phase. Synchronous backend POST that may block ~60s on
 
 The default-prompt constant is duplicated here intentionally — it's a frozen UX copy of ARCHITECTURE.md §9.3 used only for the "Reset to default" button. Drift between the constant and `V004` would cause Reset to write a slightly different value than the seed; that's fine (operator pressed Save consciously). To prevent silent drift, a small unit test compares the frontend constant to a checked-in fixture extracted from V004. If the gap matters more in future, an endpoint can serve the canonical default — but that's not needed now.
 
-- [ ] `api/config.ts`: `fetchSystemPrompt(): Promise<{ prompt: string; updatedAt: string }>`; `updateSystemPrompt(prompt: string): Promise<{ prompt: string; updatedAt: string }>` calling `apiPut('/api/config/system-prompt', { prompt })`
-- [ ] `SystemPromptPage.tsx`:
-  - [ ] `useQuery({ queryKey: ['system-prompt'], queryFn: fetchSystemPrompt })`
-  - [ ] State: `value: string` (init from server data via `useEffect` once on load — TanStack Query is the source of truth, but we need a controlled textarea, so we mirror `data.prompt` into local state); `isDirty = value !== data.prompt`
-  - [ ] shadcn `<Textarea>`, ~20 rows, monospace styling (`font-mono`)
-  - [ ] Below textarea: char counter `{value.length} / 8000`. Red when over limit
-  - [ ] `Save` button — disabled if `!isDirty || value.trim() === '' || value.length > 8000 || mutation.isPending`. On click: `useMutation(updateSystemPrompt)` → invalidate `['system-prompt']`, toast "Saved"
-  - [ ] `Discard changes` button — visible only when `isDirty`; on click resets local state to `data.prompt`
-  - [ ] `Reset to default` button — opens shadcn `AlertDialog` "Reset to default? This loads the built-in prompt into the editor. Changes will not be saved until you click Save". On confirm: sets local state to `DEFAULT_PROMPT_CONSTANT` (string copy of ARCHITECTURE.md §9.3 in the file). After reset, `isDirty` is true and the operator must press Save explicitly
-  - [ ] Loading skeleton; error state via `parseApiError`; mutation errors (`empty_prompt`, `prompt_too_long`, `malformed_body`) shown inline
-- [ ] `App.tsx`: wire `/admin/system-prompt` route to `<SystemPromptPage />`
-- [ ] Tests:
-  - [ ] Loading state visible initially
-  - [ ] After successful load, textarea contains the prompt and char counter shows the right number
-  - [ ] Edit → counter updates → Save enables; click Save → `updateSystemPrompt` called with new prompt → query invalidated → toast shown
-  - [ ] Discard reverts to server value; `isDirty` returns to false; button disappears
-  - [ ] Reset opens dialog; confirm fills textarea with the default constant; `isDirty` is true; Save still requires explicit click
-  - [ ] Empty prompt: Save disabled; if forced via direct mutation (mock), 400 `empty_prompt` rendered as inline error
-  - [ ] 8001 chars: counter red; Save disabled
-  - [ ] Loading-state and error-state branches via mocked `useQuery`
-  - [ ] Drift guard: `DEFAULT_PROMPT_CONSTANT` equals the V004-seeded default. Implementation: copy the V004 prompt body into a checked-in fixture file (e.g., `frontend/src/components/admin/__fixtures__/default-system-prompt.txt`), import its content via `?raw` (Vite supports raw imports), assert string equality. If V004 ever changes the default, this test forces a corresponding update to the constant
-- [ ] Verify: `cd frontend && npm test`
+- [x] `api/config.ts`: `fetchSystemPrompt(): Promise<{ prompt: string; updatedAt: string }>`; `updateSystemPrompt(prompt: string): Promise<{ prompt: string; updatedAt: string }>` calling `apiPut('/api/config/system-prompt', { prompt })`
+- [x] `SystemPromptPage.tsx`:
+  - [x] `useQuery({ queryKey: ['system-prompt'], queryFn: fetchSystemPrompt })`
+  - [x] State: `value: string` (mirrored from server data; render-time conditional setState used instead of `useEffect` to mollify the `react-hooks/set-state-in-effect` lint rule — same behavior, no cascading-render warning); `isDirty = value !== data.prompt`
+  - [x] shadcn `<Textarea>`, ~20 rows, monospace styling (`font-mono`)
+  - [x] Below textarea: char counter `{value.length} / 8000`. Red when over limit
+  - [x] `Save` button — disabled if `!isDirty || value.trim() === '' || value.length > 8000 || mutation.isPending`. On click: `useMutation(updateSystemPrompt)` → invalidate `['system-prompt']`, toast "Saved"
+  - [x] `Discard changes` button — visible only when `isDirty`; on click resets local state to `data.prompt`
+  - [x] `Reset to default` button — opens shadcn `AlertDialog` "Reset to default? This loads the built-in prompt into the editor. Changes will not be saved until you click Save". On confirm: sets local state to `DEFAULT_PROMPT_CONSTANT` (loaded from the V004 fixture via Vite `?raw`). After reset, `isDirty` is true and the operator must press Save explicitly
+  - [x] Loading skeleton; error state via `parseApiError`; mutation errors (`empty_prompt`, `prompt_too_long`, `malformed_body`) shown inline
+- [x] `App.tsx`: wire `/admin/system-prompt` route to `<SystemPromptPage />`
+- [x] Tests:
+  - [x] Loading state visible initially
+  - [x] After successful load, textarea contains the prompt and char counter shows the right number
+  - [x] Edit → counter updates → Save enables; click Save → `updateSystemPrompt` called with new prompt → query invalidated → toast shown
+  - [x] Discard reverts to server value; `isDirty` returns to false; button disappears
+  - [x] Reset opens dialog; confirm fills textarea with the default constant; `isDirty` is true; Save still requires explicit click
+  - [x] Empty prompt: Save disabled; if forced via direct mutation (mock), 400 `empty_prompt` rendered as inline error
+  - [x] 8001 chars: counter red; Save disabled
+  - [x] Loading-state and error-state branches via mocked `useQuery`
+  - [x] Drift guard: `DEFAULT_PROMPT_CONSTANT` equals the V004-seeded default. Implementation: copy the V004 prompt body into a checked-in fixture file (e.g., `frontend/src/components/admin/__fixtures__/default-system-prompt.txt`), import its content via `?raw` (Vite supports raw imports), assert string equality. If V004 ever changes the default, this test forces a corresponding update to the constant
+- [x] Verify: `cd frontend && npm test`
 
 ### Task 12: Verify acceptance criteria
 
