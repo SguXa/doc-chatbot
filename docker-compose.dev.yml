@@ -28,6 +28,11 @@ services:
       - ARTEMIS_BROKER_URL=tcp://artemis:61616
       - ARTEMIS_USER=
       - ARTEMIS_PASSWORD=
+      # Dev-only auth defaults; override via .env for anything other than
+      # local development. Default JWT_SECRET is intentionally >= 32 chars
+      # to satisfy the fail-fast in Application.module().
+      - JWT_SECRET=${JWT_SECRET:-dev-jwt-secret-change-me-min-32-chars-padding-padding}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin}
     extra_hosts:
       # Linux needs this to reach the host via `host.docker.internal`; Docker
       # Desktop on macOS/Windows provides it automatically but the alias is

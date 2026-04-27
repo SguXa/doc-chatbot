@@ -277,15 +277,15 @@ The `users` table from V001 was speculatively added for the original §11 design
 
 Dev compose runs `MODE=full` → both `JWT_SECRET` and `ADMIN_PASSWORD` are required. Production compose (`docker-compose.yml`) runs `MODE=client` → no auth env vars needed; intentionally not modified.
 
-- [ ] In `docker-compose.dev.yml`, add to the `backend` service `environment` block:
+- [x] In `docker-compose.dev.yml`, add to the `backend` service `environment` block:
   ```yaml
   - JWT_SECRET=${JWT_SECRET:-dev-jwt-secret-change-me-min-32-chars-padding-padding}
   - ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin}
   ```
   Defaults are deliberately weak so a developer can `docker compose -f docker-compose.dev.yml up` without setting up `.env` first; comment in YAML explains they are placeholders for local dev only. **Verify the literal default value is ≥32 characters** before committing (`echo -n 'dev-jwt-secret-change-me-min-32-chars-padding-padding' | wc -c` must print ≥32) — otherwise the fail-fast in Application.module rejects the dev-default and `docker compose up` breaks for everyone
-- [ ] `docker-compose.yml` is NOT modified — production runs `MODE=client` and consumes neither variable
-- [ ] `.env.example` already updated in Task 2 (uncomment + comment lines); verify the comment makes the dev/client distinction explicit: "required in MODE=full and MODE=admin; ignored in MODE=client"
-- [ ] No code changes; no new tests (compose-file edits are validated by Task 11's manual smoke check)
+- [x] `docker-compose.yml` is NOT modified — production runs `MODE=client` and consumes neither variable
+- [x] `.env.example` already updated in Task 2 (uncomment + comment lines); verify the comment makes the dev/client distinction explicit: "required in MODE=full and MODE=admin; ignored in MODE=client"
+- [x] No code changes; no new tests (compose-file edits are validated by Task 11's manual smoke check)
 
 ### Task 11: Create ADR 0007
 
