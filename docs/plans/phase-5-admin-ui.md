@@ -274,30 +274,30 @@ Pure read path. No mutations yet — those land in Task 9. After this task the o
 
 Adds the two mutation flows. Both depend on the readiness probe — `useReadyStatus` is the central place that polls `/api/health/ready` while a backfill is running.
 
-- [ ] `api/admin.ts`:
-  - [ ] `interface ReadyStatus { backfill: { status: 'idle' | 'running' | 'ready' | 'failed' } }` (only the field we use; full shape per §7.5 is bigger but irrelevant)
-  - [ ] `fetchReady(): Promise<ReadyStatus>` — bypasses `apiFetch` and uses raw `fetch('/api/health/ready')` directly so it can parse the JSON body for both 200 and 503 (per §7.5 the body shape is identical). Endpoint is public per §11.2, no Authorization header needed. `/api/health/ready` returning a non-JSON body or a network error is treated as `{ backfill: { status: 'idle' } }` so the UI does not panic-block on transient failures
-  - [ ] `useReadyStatus.test.ts` includes a test that 503 with `backfill.status='running'` body still resolves to `running` (not throws) — this is the regression guard against accidentally re-routing through `apiFetch`
-  - [ ] `reindex(): Promise<{ status: 'started' | 'already_running' }>` calling `apiPost('/api/admin/reindex')`
-  - [ ] `deleteDocument(id): Promise<void>` calling `apiDelete('/api/admin/documents/${id}')`
-- [ ] `useReadyStatus`:
-  - [ ] `useQuery({ queryKey: ['ready'], queryFn: fetchReady, refetchInterval: state => state?.backfill.status === 'running' ? 3000 : false })` — polls only while running
-  - [ ] Returns `{ status, isRunning }` where `isRunning = status === 'running'`. Failure of the readiness call itself does NOT mark `isRunning` true — the hook returns the last known status
-- [ ] `ReindexButton.tsx`:
-  - [ ] `Button` "Reindex all" → opens shadcn `<AlertDialog>` with confirmation (title, description, Confirm/Cancel)
-  - [ ] On confirm: `reindex()` mutation. On success: invalidate `['ready']` so polling kicks in immediately. Toast "Reindex started" via `sonner`. On `503 reindex_in_progress` (already running) — same UX (idempotent)
-  - [ ] Disabled when `useReadyStatus().isRunning` is true; tooltip "Reindex is running"
-- [ ] Delete column in `DocumentTable.tsx`:
-  - [ ] Trash icon button per row → opens `<AlertDialog>` "Delete {filename}? Chunks and images will be removed"
-  - [ ] On confirm: `deleteDocument(id)` mutation. On success: invalidate `['documents']`, toast "Deleted"
-  - [ ] On 503 reindex_in_progress: toast with `parseApiError(error).message`. The button is disabled while `isRunning` (consistency with upload)
-- [ ] `DocumentsPage.tsx` integration: render `<ReindexButton />` next to a future upload zone (Task 10 replaces the wrapper); pass `isRunning` down to disable mutations during reindex
-- [ ] Tests:
-  - [ ] `admin.test.ts`: each function calls the right URL and method
-  - [ ] `useReadyStatus.test.ts`: refetch interval is 3000 when status=running, false otherwise (poll a fake `fetchReady` and observe call count over time using `vi.useFakeTimers()`)
-  - [ ] `ReindexButton.test.tsx`: clicking opens the dialog; confirm triggers `reindex()`; toast shown on success; button is disabled while `isRunning`; tooltip text appears on hover when disabled
-  - [ ] `DocumentsPage.test.tsx` extension: delete button per row → opens dialog → confirm triggers `deleteDocument`; query invalidates and refetches (assert via mock `queryClient.invalidateQueries` call); 503 reindex_in_progress shows the parsed error; rows are disabled while reindex is running
-- [ ] Verify: `cd frontend && npm test`
+- [x] `api/admin.ts`:
+  - [x] `interface ReadyStatus { backfill: { status: 'idle' | 'running' | 'ready' | 'failed' } }` (only the field we use; full shape per §7.5 is bigger but irrelevant)
+  - [x] `fetchReady(): Promise<ReadyStatus>` — bypasses `apiFetch` and uses raw `fetch('/api/health/ready')` directly so it can parse the JSON body for both 200 and 503 (per §7.5 the body shape is identical). Endpoint is public per §11.2, no Authorization header needed. `/api/health/ready` returning a non-JSON body or a network error is treated as `{ backfill: { status: 'idle' } }` so the UI does not panic-block on transient failures
+  - [x] `useReadyStatus.test.ts` includes a test that 503 with `backfill.status='running'` body still resolves to `running` (not throws) — this is the regression guard against accidentally re-routing through `apiFetch`
+  - [x] `reindex(): Promise<{ status: 'started' | 'already_running' }>` calling `apiPost('/api/admin/reindex')`
+  - [x] `deleteDocument(id): Promise<void>` calling `apiDelete('/api/admin/documents/${id}')`
+- [x] `useReadyStatus`:
+  - [x] `useQuery({ queryKey: ['ready'], queryFn: fetchReady, refetchInterval: state => state?.backfill.status === 'running' ? 3000 : false })` — polls only while running
+  - [x] Returns `{ status, isRunning }` where `isRunning = status === 'running'`. Failure of the readiness call itself does NOT mark `isRunning` true — the hook returns the last known status
+- [x] `ReindexButton.tsx`:
+  - [x] `Button` "Reindex all" → opens shadcn `<AlertDialog>` with confirmation (title, description, Confirm/Cancel)
+  - [x] On confirm: `reindex()` mutation. On success: invalidate `['ready']` so polling kicks in immediately. Toast "Reindex started" via `sonner`. On `503 reindex_in_progress` (already running) — same UX (idempotent)
+  - [x] Disabled when `useReadyStatus().isRunning` is true; tooltip "Reindex is running"
+- [x] Delete column in `DocumentTable.tsx`:
+  - [x] Trash icon button per row → opens `<AlertDialog>` "Delete {filename}? Chunks and images will be removed"
+  - [x] On confirm: `deleteDocument(id)` mutation. On success: invalidate `['documents']`, toast "Deleted"
+  - [x] On 503 reindex_in_progress: toast with `parseApiError(error).message`. The button is disabled while `isRunning` (consistency with upload)
+- [x] `DocumentsPage.tsx` integration: render `<ReindexButton />` next to a future upload zone (Task 10 replaces the wrapper); pass `isRunning` down to disable mutations during reindex
+- [x] Tests:
+  - [x] `admin.test.ts`: each function calls the right URL and method
+  - [x] `useReadyStatus.test.ts`: refetch interval is 3000 when status=running, false otherwise (poll a fake `fetchReady` and observe call count over time using `vi.useFakeTimers()`)
+  - [x] `ReindexButton.test.tsx`: clicking opens the dialog; confirm triggers `reindex()`; toast shown on success; button is disabled while `isRunning`; tooltip text appears on hover when disabled
+  - [x] `DocumentsPage.test.tsx` extension: delete button per row → opens dialog → confirm triggers `deleteDocument`; query invalidates and refetches (assert via mock `queryClient.invalidateQueries` call); 503 reindex_in_progress shows the parsed error; rows are disabled while reindex is running
+- [x] Verify: `cd frontend && npm test`
 
 ### Task 10: `DocumentUpload` — drag-drop + XHR progress + every error discriminator
 

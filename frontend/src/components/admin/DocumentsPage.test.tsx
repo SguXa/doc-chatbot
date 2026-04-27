@@ -1,8 +1,10 @@
-import { render, screen, waitFor, within } from '@testing-library/react'
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { render, screen, waitFor, within, fireEvent } from '@testing-library/react'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { DocumentsPage } from './DocumentsPage'
 import * as documentsApi from '@/api/documents'
+import * as adminApi from '@/api/admin'
+import * as sonner from 'sonner'
 import { ApiError } from '@/api/client'
 import type { DocumentDto } from '@/api/documents'
 
@@ -10,11 +12,14 @@ function renderPage() {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   })
-  return render(
-    <QueryClientProvider client={queryClient}>
-      <DocumentsPage />
-    </QueryClientProvider>,
-  )
+  return {
+    queryClient,
+    ...render(
+      <QueryClientProvider client={queryClient}>
+        <DocumentsPage />
+      </QueryClientProvider>,
+    ),
+  }
 }
 
 const SAMPLE_DOC_A: DocumentDto = {
@@ -43,6 +48,14 @@ const SAMPLE_DOC_B: DocumentDto = {
 
 describe('DocumentsPage', () => {
   beforeEach(() => {
+    vi.spyOn(adminApi, 'fetchReady').mockResolvedValue({
+      backfill: { status: 'idle' },
+    })
+    vi.spyOn(sonner.toast, 'success').mockImplementation(() => '' as never)
+    vi.spyOn(sonner.toast, 'error').mockImplementation(() => '' as never)
+  })
+
+  afterEach(() => {
     vi.restoreAllMocks()
   })
 
@@ -110,6 +123,88 @@ describe('DocumentsPage', () => {
     renderPage()
 
     expect(await screen.findByText(/failed to load documents/i)).toBeInTheDocument()
-    expect(screen.getByText(/reindex is running/i)).toBeInTheDocument()
+    expect(screen.getAllByText(/reindex is running/i).length).toBeGreaterThan(0)
+  })
+
+  it('renders the Reindex button alongside the page header', async () => {
+    vi.spyOn(documentsApi, 'fetchDocuments').mockResolvedValue({ documents: [], total: 0 })
+
+    renderPage()
+
+    expect(
+      await screen.findByRole('button', { name: /reindex all/i }),
+    ).toBeInTheDocument()
+  })
+
+  it('opens delete confirmation dialog and calls deleteDocument on confirm', async () => {
+    vi.spyOn(documentsApi, 'fetchDocuments').mockResolvedValue({
+      documents: [SAMPLE_DOC_A],
+      total: 1,
+    })
+    const deleteSpy = vi.spyOn(adminApi, 'deleteDocument').mockResolvedValue(undefined)
+
+    const { queryClient } = renderPage()
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries')
+
+    await screen.findByText('a.docx')
+    const deleteButton = screen.getByRole('button', { name: /delete a\.docx/i })
+    fireEvent.click(deleteButton)
+
+    expect(await screen.findByRole('alertdialog')).toBeInTheDocument()
+    expect(screen.getByText(/delete a\.docx\?/i)).toBeInTheDocument()
+
+    const confirmButton = screen.getByRole('button', { name: /^delete$/i })
+    fireEvent.click(confirmButton)
+
+    await waitFor(() => {
+      expect(deleteSpy).toHaveBeenCalledWith(1)
+    })
+    await waitFor(() => {
+      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['documents'] })
+    })
+    await waitFor(() => {
+      expect(sonner.toast.success).toHaveBeenCalledWith('Deleted')
+    })
+  })
+
+  it('shows parsed error message when delete returns 503 reindex_in_progress', async () => {
+    vi.spyOn(documentsApi, 'fetchDocuments').mockResolvedValue({
+      documents: [SAMPLE_DOC_A],
+      total: 1,
+    })
+    vi.spyOn(adminApi, 'deleteDocument').mockRejectedValue(
+      new ApiError(503, 'Service Unavailable', { error: 'reindex_in_progress' }),
+    )
+
+    renderPage()
+
+    await screen.findByText('a.docx')
+    fireEvent.click(screen.getByRole('button', { name: /delete a\.docx/i }))
+    fireEvent.click(await screen.findByRole('button', { name: /^delete$/i }))
+
+    await waitFor(() => {
+      expect(sonner.toast.error).toHaveBeenCalled()
+    })
+    const errorMessage = (sonner.toast.error as ReturnType<typeof vi.fn>).mock.calls[0][0]
+    expect(errorMessage).toMatch(/reindex is running/i)
+  })
+
+  it('disables row delete buttons while reindex is running', async () => {
+    vi.spyOn(adminApi, 'fetchReady').mockResolvedValue({
+      backfill: { status: 'running' },
+    })
+    vi.spyOn(documentsApi, 'fetchDocuments').mockResolvedValue({
+      documents: [SAMPLE_DOC_A],
+      total: 1,
+    })
+
+    renderPage()
+
+    await screen.findByText('a.docx')
+    await waitFor(() => {
+      expect(
+        screen.getByRole('button', { name: /delete a\.docx/i }),
+      ).toBeDisabled()
+    })
   })
 })

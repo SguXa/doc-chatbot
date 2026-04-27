@@ -2,7 +2,9 @@ import { useQuery } from '@tanstack/react-query'
 import { fetchDocuments } from '@/api/documents'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
 import { parseApiError } from '@/lib/errors'
+import { useReadyStatus } from '@/hooks/useReadyStatus'
 import { DocumentTable } from './DocumentTable'
+import { ReindexButton } from './ReindexButton'
 
 function DocumentsPage() {
   const { data, isLoading, isError, error } = useQuery({
@@ -10,14 +12,18 @@ function DocumentsPage() {
     queryFn: fetchDocuments,
     retry: false,
   })
+  const { isRunning } = useReadyStatus()
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-xl font-semibold">Documents</h2>
-        <p className="text-sm text-muted-foreground">
-          Knowledge base documents indexed for retrieval.
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h2 className="text-xl font-semibold">Documents</h2>
+          <p className="text-sm text-muted-foreground">
+            Knowledge base documents indexed for retrieval.
+          </p>
+        </div>
+        <ReindexButton />
       </div>
 
       {isLoading && <p className="text-sm text-muted-foreground">Loading documents…</p>}
@@ -45,7 +51,7 @@ function DocumentsPage() {
       {!isLoading && !isError && data && data.documents.length > 0 && (
         <Card>
           <CardContent className="px-0">
-            <DocumentTable documents={data.documents} />
+            <DocumentTable documents={data.documents} isReindexing={isRunning} />
           </CardContent>
         </Card>
       )}
