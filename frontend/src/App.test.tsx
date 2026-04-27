@@ -64,14 +64,20 @@ describe('App', () => {
   })
 
   it('lets authenticated user reach /admin/documents', () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ documents: [], total: 0 }), { status: 200 }),
+    )
     useAuthStore.setState({ token: 't', isAuthenticated: true })
     renderAt('/admin/documents')
-    expect(screen.getByText('Admin Documents')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /^documents$/i })).toBeInTheDocument()
   })
 
   it('redirects /admin index route to /admin/documents when authenticated', () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ documents: [], total: 0 }), { status: 200 }),
+    )
     useAuthStore.setState({ token: 't', isAuthenticated: true })
     renderAt('/admin')
-    expect(screen.getByText('Admin Documents')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /^documents$/i })).toBeInTheDocument()
   })
 })

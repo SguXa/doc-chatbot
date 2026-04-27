@@ -244,20 +244,20 @@ Replace the placeholder element from Task 6 with the real layout. After this tas
 
 Pure read path. No mutations yet — those land in Task 9. After this task the operator sees a table of indexed documents (or an empty-state card).
 
-- [ ] `api/documents.ts`: `interface DocumentDto { id: number; filename: string; fileType: 'docx' | 'pdf'; fileSize: number; fileHash: string; chunkCount: number; imageCount: number; indexedAt: string; createdAt: string }`; `fetchDocuments(): Promise<{ documents: DocumentDto[]; total: number }>` calling `apiGet('/api/admin/documents')`. Server already returns newest-first per `DocumentRepository.findAll()` (ARCHITECTURE.md §7.2) — frontend does NOT re-sort
-- [ ] `DocumentsPage.tsx`:
-  - [ ] `useQuery({ queryKey: ['documents'], queryFn: fetchDocuments })`
-  - [ ] Loading skeleton: shadcn `<Skeleton>` (add via shadcn-add if not present), or a simple "Loading…" message
-  - [ ] Error state: `parseApiError(error).message` in a shadcn `Card` with red accent
-  - [ ] Empty state: `Card` with "No documents. Upload your first to get started."
-  - [ ] Non-empty state: render `<DocumentTable documents={data.documents} />`
-- [ ] `DocumentTable.tsx`: shadcn `<Table>` with columns: `Filename`, `Type` (badge), `Size` (humanize via small util — KB/MB rounding), `Chunks`, `Images`, `Indexed at` (relative date — small util `formatRelativeTime` is fine, or `Intl.RelativeTimeFormat`). Last column is empty for now (delete button lands in Task 9)
-- [ ] `App.tsx`: replace the `/admin/documents` placeholder with `<DocumentsPage />`
-- [ ] Tests:
-  - [ ] `documents.test.ts`: `fetchDocuments` calls the right URL with the right method; returns shape preserved
-  - [ ] `DocumentsPage.test.tsx`: shows loading state initially; shows empty state when API returns `{ documents: [], total: 0 }`; shows table with N rows when API returns N docs (mock `useQuery` or wrap in `QueryClientProvider`); shows error message when API throws `ApiError`
-  - [ ] `DocumentsPage.test.tsx`: server order is preserved in render (no re-sorting on the client) — pass two docs in a known order, assert DOM order matches
-- [ ] Verify: `cd frontend && npm test`
+- [x] `api/documents.ts`: `interface DocumentDto { id: number; filename: string; fileType: 'docx' | 'pdf'; fileSize: number; fileHash: string; chunkCount: number; imageCount: number; indexedAt: string; createdAt: string }`; `fetchDocuments(): Promise<{ documents: DocumentDto[]; total: number }>` calling `apiGet('/api/admin/documents')`. Server already returns newest-first per `DocumentRepository.findAll()` (ARCHITECTURE.md §7.2) — frontend does NOT re-sort
+- [x] `DocumentsPage.tsx`:
+  - [x] `useQuery({ queryKey: ['documents'], queryFn: fetchDocuments })`
+  - [x] Loading skeleton: shadcn `<Skeleton>` (add via shadcn-add if not present), or a simple "Loading…" message
+  - [x] Error state: `parseApiError(error).message` in a shadcn `Card` with red accent
+  - [x] Empty state: `Card` with "No documents. Upload your first to get started."
+  - [x] Non-empty state: render `<DocumentTable documents={data.documents} />`
+- [x] `DocumentTable.tsx`: shadcn `<Table>` with columns: `Filename`, `Type` (badge), `Size` (humanize via small util — KB/MB rounding), `Chunks`, `Images`, `Indexed at` (relative date — small util `formatRelativeTime` is fine, or `Intl.RelativeTimeFormat`). Last column is empty for now (delete button lands in Task 9)
+- [x] `App.tsx`: replace the `/admin/documents` placeholder with `<DocumentsPage />`
+- [x] Tests:
+  - [x] `documents.test.ts`: `fetchDocuments` calls the right URL with the right method; returns shape preserved
+  - [x] `DocumentsPage.test.tsx`: shows loading state initially; shows empty state when API returns `{ documents: [], total: 0 }`; shows table with N rows when API returns N docs (mock `useQuery` or wrap in `QueryClientProvider`); shows error message when API throws `ApiError`
+  - [x] `DocumentsPage.test.tsx`: server order is preserved in render (no re-sorting on the client) — pass two docs in a known order, assert DOM order matches
+- [x] Verify: `cd frontend && npm test`
 
 ### Task 9: `DocumentTable` mutations — Delete + `ReindexButton` with polling
 
