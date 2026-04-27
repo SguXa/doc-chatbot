@@ -72,14 +72,14 @@ Build the React admin surface that consumes the JWT-protected backend shipped in
 
 shadcn-init writes a few files (`components.json`, base CSS variables, the `cn` helper at `lib/utils.ts` which already exists). After init, add only the components needed in this phase.
 
-- [ ] Run `npx shadcn@latest init` — accept defaults: TypeScript yes, style "new-york" or "default" (operator preference; "default" is fine), base color "slate", CSS vars yes, `components.json` at frontend root
-- [ ] Verify `frontend/tsconfig.app.json` and `frontend/vite.config.ts` have `@/*` → `./src/*` path alias (shadcn-init may add this; if not, add manually)
-- [ ] shadcn-init writes (or overwrites) `frontend/src/lib/utils.ts` with the standard `cn` helper. Verify the export exists after init runs; do not pre-create it
-- [ ] Add components: `npx shadcn@latest add button input label card dialog alert-dialog table dropdown-menu textarea sonner`
-- [ ] Install zustand: `npm install zustand`
-- [ ] Verify `cd frontend && npm run build` succeeds (compiles all newly added shadcn components)
-- [ ] Verify `cd frontend && npm test` still green (no test changes; existing `client.test.ts` and `App.test.tsx` must keep passing)
-- [ ] Verify `cd frontend && npm run lint` reports no new errors
+- [x] Run `npx shadcn@latest init` — accept defaults: TypeScript yes, style "new-york" or "default" (operator preference; "default" is fine), base color "slate", CSS vars yes, `components.json` at frontend root
+- [x] Verify `frontend/tsconfig.app.json` and `frontend/vite.config.ts` have `@/*` → `./src/*` path alias (shadcn-init may add this; if not, add manually)
+- [x] shadcn-init writes (or overwrites) `frontend/src/lib/utils.ts` with the standard `cn` helper. Verify the export exists after init runs; do not pre-create it
+- [x] Add components: `npx shadcn@latest add button input label card dialog alert-dialog table dropdown-menu textarea sonner`
+- [x] Install zustand: `npm install zustand`
+- [x] Verify `cd frontend && npm run build` succeeds (compiles all newly added shadcn components)
+- [x] Verify `cd frontend && npm test` still green (no test changes; existing `client.test.ts` and `App.test.tsx` must keep passing)
+- [x] Verify `cd frontend && npm run lint` reports no new errors
 
 ### Task 2: Backend `ConfigRoutes` and repo extension
 
