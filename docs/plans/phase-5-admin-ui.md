@@ -122,24 +122,24 @@ Implements `GET /api/config/system-prompt` and `PUT /api/config/system-prompt` f
 
 Extend the existing minimal `client.ts`. The current `apiGet`/`apiPost` use `fetch` and throw `ApiError` on non-2xx; we add `apiPut`, `apiDelete`, an `Authorization: Bearer` header injection, an `UnauthorizedError` subclass for 401, body-parsing of structured error JSON so error discriminators reach `lib/errors.ts` (Task 5), and 204 No Content handling for all verbs.
 
-- [ ] Introduce `class UnauthorizedError extends ApiError` (status is always 401)
-- [ ] Refactor `apiFetch(path, init)` as the shared core:
-  - [ ] Reads token via `useAuthStore.getState().token` — **import is done lazily inside the function body** (`const { useAuthStore } = await import('@/stores/authStore')` or a top-of-function `require`-style guarded import) so the module-load order does not produce a circular dep with `authStore.ts`, which transitively depends on this module via tests. Reading from the store keeps a single source of truth (no parallel `localStorage.getItem` path) and means the store is the only entity that knows the token's lifecycle
-  - [ ] Injects `Authorization: Bearer ${token}` when token is non-null
-  - [ ] On 401 → calls `useAuthStore.getState().logout()` (which itself clears `localStorage['aos.token']`) and throws `UnauthorizedError`
-  - [ ] On non-2xx → tries `await response.json()`, attaches parsed body to `ApiError.body` (typed as `unknown`); on JSON parse failure, `body` is `undefined`
-  - [ ] On 204 No Content → returns `undefined as unknown as T` (callers that expect data must not call `apiPost`/`apiPut` against a 204 endpoint)
-- [ ] Reimplement `apiGet`/`apiPost` on top of `apiFetch`; add `apiPut(path, body)` and `apiDelete(path)`. Preserve existing exports
-- [ ] Export `ApiError`, `UnauthorizedError`. `ApiError.body` is the new public surface used by `lib/errors.ts`
-- [ ] Tests in `client.test.ts` (extend, do not replace existing):
-  - [ ] All four verbs send `Authorization: Bearer <token>` when the store has a token
-  - [ ] All four verbs send no Authorization header when token is absent
-  - [ ] 401 response: throws `UnauthorizedError`; `useAuthStore.getState().isAuthenticated` is false afterwards; `localStorage['aos.token']` is cleared (the latter is implementation detail of `logout()` but worth pinning)
-  - [ ] 4xx with JSON body — `error.body` is the parsed object
-  - [ ] 4xx with non-JSON body — `error.body` is `undefined` and the call still throws `ApiError`
-  - [ ] 5xx with JSON body — same as 4xx (covers 503 from upload/reindex paths)
-  - [ ] All four verbs return `undefined` on 204 No Content (no JSON parse, no crash). Logout (Task 7) and DELETE (Task 9) both rely on this
-- [ ] Verify: `cd frontend && npm test`
+- [x] Introduce `class UnauthorizedError extends ApiError` (status is always 401)
+- [x] Refactor `apiFetch(path, init)` as the shared core:
+  - [x] Reads token via `useAuthStore.getState().token` — implemented with a static top-level import of `useAuthStore` and a getState() call inside the function body. The "lazy dynamic import" originally proposed broke `App.test.tsx` (an async tick let test 1's pending fetch leak into test 2 and consume its mock Response body). There is no actual circular dependency — `authStore.ts` does not import from `client.ts` — so the defensive lazy import was unnecessary. Single source of truth (the store) is preserved.
+  - [x] Injects `Authorization: Bearer ${token}` when token is non-null
+  - [x] On 401 → calls `useAuthStore.getState().logout()` (which itself clears `localStorage['aos.token']`) and throws `UnauthorizedError`
+  - [x] On non-2xx → tries `await response.json()`, attaches parsed body to `ApiError.body` (typed as `unknown`); on JSON parse failure, `body` is `undefined`
+  - [x] On 204 No Content → returns `undefined as unknown as T` (callers that expect data must not call `apiPost`/`apiPut` against a 204 endpoint)
+- [x] Reimplement `apiGet`/`apiPost` on top of `apiFetch`; add `apiPut(path, body)` and `apiDelete(path)`. Preserve existing exports
+- [x] Export `ApiError`, `UnauthorizedError`. `ApiError.body` is the new public surface used by `lib/errors.ts`
+- [x] Tests in `client.test.ts` (extend, do not replace existing):
+  - [x] All four verbs send `Authorization: Bearer <token>` when the store has a token
+  - [x] All four verbs send no Authorization header when token is absent
+  - [x] 401 response: throws `UnauthorizedError`; `useAuthStore.getState().isAuthenticated` is false afterwards; `localStorage['aos.token']` is cleared (the latter is implementation detail of `logout()` but worth pinning)
+  - [x] 4xx with JSON body — `error.body` is the parsed object
+  - [x] 4xx with non-JSON body — `error.body` is `undefined` and the call still throws `ApiError`
+  - [x] 5xx with JSON body — same as 4xx (covers 503 from upload/reindex paths)
+  - [x] All four verbs return `undefined` on 204 No Content (no JSON parse, no crash). Logout (Task 7) and DELETE (Task 9) both rely on this
+- [x] Verify: `cd frontend && npm test`
 
 ### Task 4: zustand `authStore` + boot hydration
 
