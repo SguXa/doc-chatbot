@@ -143,24 +143,24 @@ Owns the in-memory password hash and the login decision. JWT issuance is delegat
 
 Public route bundle. Wired in `Application.module()` only when `AuthService` is constructed (FULL/ADMIN modes).
 
-- [ ] Create `LoginRequest(username: String, password: String)`, `LoginResponse(token: String, expiresIn: Long, user: UserInfo)`, `UserInfo(username: String, role: String)`, `InvalidLoginResponse(error: String = "invalid_credentials")`, `InvalidRequestResponse(error: String = "invalid_request", reason: String)` — all `@Serializable`. Two error shapes for two failure classes (auth-401 vs format-400) with stable string discriminators per project convention. The success response mirrors §7.4 exactly: `user.username = "admin"`, `user.role = "admin"` (constants — there is no other user)
-- [ ] `fun Route.authRoutes(authService: AuthService, ttlSeconds: Long)` extension
-- [ ] `POST /api/auth/login`:
-  - [ ] Receive `LoginRequest`; on deserialization failure → 400 `{"error": "invalid_request", "reason": "malformed_body"}`
-  - [ ] Validate `password.isNotBlank()` → otherwise 400 `{"error": "invalid_request", "reason": "empty_password"}`
-  - [ ] `username` field is read but ignored server-side (KDoc explains why)
-  - [ ] Call `authService.login(body.password)`; if null → 401 `InvalidLoginResponse`
-  - [ ] On success → 200 `LoginResponse(token, expiresIn = ttlSeconds, UserInfo("admin", "admin"))`
-- [ ] `POST /api/auth/logout`:
-  - [ ] Always 204 No Content. No body, no auth required, no server-side state mutation
-- [ ] AuthRoutesTest with `TestApplication`. All assertions decode response bodies into the typed `LoginResponse` / `InvalidLoginResponse` / `InvalidRequestResponse` data classes via `Json.decodeFromString<...>` rather than asserting on raw JSON keys — this locks the wire format at compile time:
-  - [ ] Login with correct password → 200, decoded `LoginResponse`: `token` is non-empty, `expiresIn == 86400`, `user.username == "admin"`, `user.role == "admin"`
-  - [ ] Login with wrong password → 401, decoded `InvalidLoginResponse`: `error == "invalid_credentials"`
-  - [ ] Login with empty password → 400, decoded `InvalidRequestResponse`: `error == "invalid_request"`, `reason == "empty_password"`
-  - [ ] Login with malformed JSON body → 400, decoded `InvalidRequestResponse`: `reason == "malformed_body"`
-  - [ ] Login with `username != "admin"` but correct password → 200 (username ignored — proves the contract decision)
-  - [ ] Logout → 204 with no body
-- [ ] Verify: `cd backend && ./gradlew test`
+- [x] Create `LoginRequest(username: String, password: String)`, `LoginResponse(token: String, expiresIn: Long, user: UserInfo)`, `UserInfo(username: String, role: String)`, `InvalidLoginResponse(error: String = "invalid_credentials")`, `InvalidRequestResponse(error: String = "invalid_request", reason: String)` — all `@Serializable`. Two error shapes for two failure classes (auth-401 vs format-400) with stable string discriminators per project convention. The success response mirrors §7.4 exactly: `user.username = "admin"`, `user.role = "admin"` (constants — there is no other user)
+- [x] `fun Route.authRoutes(authService: AuthService, ttlSeconds: Long)` extension
+- [x] `POST /api/auth/login`:
+  - [x] Receive `LoginRequest`; on deserialization failure → 400 `{"error": "invalid_request", "reason": "malformed_body"}`
+  - [x] Validate `password.isNotBlank()` → otherwise 400 `{"error": "invalid_request", "reason": "empty_password"}`
+  - [x] `username` field is read but ignored server-side (KDoc explains why)
+  - [x] Call `authService.login(body.password)`; if null → 401 `InvalidLoginResponse`
+  - [x] On success → 200 `LoginResponse(token, expiresIn = ttlSeconds, UserInfo("admin", "admin"))`
+- [x] `POST /api/auth/logout`:
+  - [x] Always 204 No Content. No body, no auth required, no server-side state mutation
+- [x] AuthRoutesTest with `TestApplication`. All assertions decode response bodies into the typed `LoginResponse` / `InvalidLoginResponse` / `InvalidRequestResponse` data classes via `Json.decodeFromString<...>` rather than asserting on raw JSON keys — this locks the wire format at compile time:
+  - [x] Login with correct password → 200, decoded `LoginResponse`: `token` is non-empty, `expiresIn == 86400`, `user.username == "admin"`, `user.role == "admin"`
+  - [x] Login with wrong password → 401, decoded `InvalidLoginResponse`: `error == "invalid_credentials"`
+  - [x] Login with empty password → 400, decoded `InvalidRequestResponse`: `error == "invalid_request"`, `reason == "empty_password"`
+  - [x] Login with malformed JSON body → 400, decoded `InvalidRequestResponse`: `reason == "malformed_body"`
+  - [x] Login with `username != "admin"` but correct password → 200 (username ignored — proves the contract decision)
+  - [x] Logout → 204 with no body
+- [x] Verify: `cd backend && ./gradlew test`
 
 ### Task 7: Wire auth into Application.module
 
