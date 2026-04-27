@@ -43,11 +43,14 @@ interface ErrorBody {
   existing?: DocumentDto
 }
 
-function parseApiError(error: unknown): ParsedError {
+function unauthorizedFallback(error: ApiError): ParsedError {
   if (error instanceof UnauthorizedError) {
     return { kind: 'unauthorized', message: 'Session expired. Please log in again.' }
   }
+  return { kind: 'unknown', message: error.message || 'Server error' }
+}
 
+function parseApiError(error: unknown): ParsedError {
   if (!(error instanceof ApiError)) {
     if (error instanceof Error) {
       return { kind: 'unknown', message: error.message || 'Server error' }
@@ -57,7 +60,7 @@ function parseApiError(error: unknown): ParsedError {
 
   const body = error.body as ErrorBody | undefined
   if (!body || typeof body !== 'object') {
-    return { kind: 'unknown', message: error.message || 'Server error' }
+    return unauthorizedFallback(error)
   }
 
   const code = body.error
@@ -113,6 +116,9 @@ function parseApiError(error: unknown): ParsedError {
           return { kind: 'unknown', message: body.message ?? error.message ?? 'Server error' }
       }
     default:
+      if (error instanceof UnauthorizedError) {
+        return { kind: 'unauthorized', message: 'Session expired. Please log in again.' }
+      }
       return { kind: 'unknown', message: body.message ?? error.message ?? 'Server error' }
   }
 }

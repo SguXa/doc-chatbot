@@ -1,8 +1,9 @@
 import { render, screen } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { BrowserRouter } from 'react-router-dom'
+import { BrowserRouter, MemoryRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { App } from './App'
+import { useAuthStore } from '@/stores/authStore'
 
 function renderWithProviders(ui: React.ReactElement) {
   const queryClient = new QueryClient({
@@ -15,9 +16,24 @@ function renderWithProviders(ui: React.ReactElement) {
   )
 }
 
+function renderAt(path: string) {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  })
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={[path]}>
+        <App />
+      </MemoryRouter>
+    </QueryClientProvider>,
+  )
+}
+
 describe('App', () => {
   beforeEach(() => {
     vi.restoreAllMocks()
+    localStorage.clear()
+    useAuthStore.setState({ token: null, isAuthenticated: false })
   })
 
   it('renders with router and shows title', () => {
@@ -40,5 +56,22 @@ describe('App', () => {
     vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('Network error'))
     renderWithProviders(<App />)
     expect(await screen.findByText('unavailable')).toBeInTheDocument()
+  })
+
+  it('redirects unauthenticated visit to /admin/documents to /login', () => {
+    renderAt('/admin/documents')
+    expect(screen.getByLabelText(/password/i)).toBeInTheDocument()
+  })
+
+  it('lets authenticated user reach /admin/documents', () => {
+    useAuthStore.setState({ token: 't', isAuthenticated: true })
+    renderAt('/admin/documents')
+    expect(screen.getByText('Admin Documents')).toBeInTheDocument()
+  })
+
+  it('redirects /admin index route to /admin/documents when authenticated', () => {
+    useAuthStore.setState({ token: 't', isAuthenticated: true })
+    renderAt('/admin')
+    expect(screen.getByText('Admin Documents')).toBeInTheDocument()
   })
 })

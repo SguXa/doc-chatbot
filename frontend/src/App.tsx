@@ -1,6 +1,8 @@
-import { Routes, Route } from 'react-router-dom'
+import { Routes, Route, Navigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { apiGet } from './api/client'
+import { LoginForm } from '@/components/auth/LoginForm'
+import { ProtectedRoute } from '@/components/auth/ProtectedRoute'
 
 interface HealthResponse {
   status: string
@@ -34,10 +36,24 @@ function HomePage() {
   )
 }
 
+function AdminDocumentsPlaceholder() {
+  return <div>Admin Documents</div>
+}
+
+function AdminSystemPromptPlaceholder() {
+  return <div>Admin System Prompt</div>
+}
+
 function App() {
   return (
     <Routes>
       <Route path="/" element={<HomePage />} />
+      <Route path="/login" element={<LoginForm />} />
+      <Route path="/admin" element={<ProtectedRoute />}>
+        <Route index element={<Navigate to="/admin/documents" replace />} />
+        <Route path="documents" element={<AdminDocumentsPlaceholder />} />
+        <Route path="system-prompt" element={<AdminSystemPromptPlaceholder />} />
+      </Route>
     </Routes>
   )
 }

@@ -194,22 +194,22 @@ Single source of truth for translating backend error discriminators into UX mess
 
 After this task, an operator can navigate to `/login`, submit `ADMIN_PASSWORD`, and land on a placeholder `/admin/documents`. The `AdminLayout` and real pages land in subsequent tasks.
 
-- [ ] `LoginForm.tsx`:
-  - [ ] One `<input type="password">` (shadcn `Input`), submit `<Button>`. Container is a centered shadcn `Card`
-  - [ ] Local state: `password`, `submitting`, `error: ParsedError | null`
-  - [ ] On submit: `apiPost<LoginResponse>('/api/auth/login', { username: 'admin', password })`; on success → `useAuthStore.getState().login(response.token)` + `navigate(state.from?.pathname ?? '/admin/documents', { replace: true })`. On error → `parseApiError(error)` and render `error.message`
-  - [ ] Empty-password client-side validation: don't submit, show "Enter password" without round-tripping
-  - [ ] Loading: disable button + show shadcn spinner inside it
-- [ ] `ProtectedRoute.tsx`: reads `useAuthStore(s => s.isAuthenticated)`; if false → `<Navigate to="/login" state={{ from: location }} replace />`; else `<Outlet />`
-- [ ] `App.tsx` routing:
-  - [ ] `/` — keep current `HomePage` (chat UI is Phase 6)
-  - [ ] `/login` — `<LoginForm />`
-  - [ ] `/admin` — `<ProtectedRoute />` wrapping a placeholder element (Task 7 replaces with `AdminLayout`); nested redirect from `/admin` to `/admin/documents`
-- [ ] Tests:
-  - [ ] `LoginForm.test.tsx`: renders password field; submit calls `apiPost` with the right body; on success token is stored and route changes to `/admin/documents` (assert with `MemoryRouter` + `useLocation` spy); on 401 displays "Invalid password"; on 503 displays a network-error message; empty password does not submit
-  - [ ] `ProtectedRoute.test.tsx`: when unauthenticated, renders `<Navigate>` (assert location change with `MemoryRouter`); when authenticated, renders the wrapped route; deeplink preservation: visit `/admin/documents` while logged out, get redirected to `/login`, after `login()` the next render of `/login` would `Navigate` back to `/admin/documents` (test the state-passing contract)
-  - [ ] `App.test.tsx` (existing): keep the `/api/health` rendering test; add: visiting `/admin/documents` while unauthenticated lands on `/login`
-- [ ] Verify: `cd frontend && npm test`
+- [x] `LoginForm.tsx`:
+  - [x] One `<input type="password">` (shadcn `Input`), submit `<Button>`. Container is a centered shadcn `Card`
+  - [x] Local state: `password`, `submitting`, `error: ParsedError | null`
+  - [x] On submit: `apiPost<LoginResponse>('/api/auth/login', { username: 'admin', password })`; on success → `useAuthStore.getState().login(response.token)` + `navigate(state.from?.pathname ?? '/admin/documents', { replace: true })`. On error → `parseApiError(error)` and render `error.message`
+  - [x] Empty-password client-side validation: don't submit, show "Enter password" without round-tripping
+  - [x] Loading: disable button + show shadcn spinner inside it
+- [x] `ProtectedRoute.tsx`: reads `useAuthStore(s => s.isAuthenticated)`; if false → `<Navigate to="/login" state={{ from: location }} replace />`; else `<Outlet />`
+- [x] `App.tsx` routing:
+  - [x] `/` — keep current `HomePage` (chat UI is Phase 6)
+  - [x] `/login` — `<LoginForm />`
+  - [x] `/admin` — `<ProtectedRoute />` wrapping a placeholder element (Task 7 replaces with `AdminLayout`); nested redirect from `/admin` to `/admin/documents`
+- [x] Tests:
+  - [x] `LoginForm.test.tsx`: renders password field; submit calls `apiPost` with the right body; on success token is stored and route changes to `/admin/documents` (assert with `MemoryRouter` + `useLocation` spy); on 401 displays "Invalid password"; on 503 displays a network-error message; empty password does not submit
+  - [x] `ProtectedRoute.test.tsx`: when unauthenticated, renders `<Navigate>` (assert location change with `MemoryRouter`); when authenticated, renders the wrapped route; deeplink preservation: visit `/admin/documents` while logged out, get redirected to `/login`, after `login()` the next render of `/login` would `Navigate` back to `/admin/documents` (test the state-passing contract)
+  - [x] `App.test.tsx` (existing): keep the `/api/health` rendering test; add: visiting `/admin/documents` while unauthenticated lands on `/login`
+- [x] Verify: `cd frontend && npm test`
 
 ### Task 7: `AdminLayout` — sidebar + outlet + logout
 
