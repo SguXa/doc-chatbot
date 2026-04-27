@@ -426,9 +426,9 @@ End-to-end gate before doc updates. No new code — just verification that every
 
 ### Task 14: Move plan to completed and update branch
 
-- [ ] Once every checkbox above is `[x]`, move this file to `docs/plans/completed/<YYYY-MM-DD>-phase-5-admin-ui.md` (use the actual finish date, matching the convention of `2026-04-27-phase-4-auth.md`)
-- [ ] Verify the moved plan renders correctly (no broken relative links to `docs/adr/` or `docs/ARCHITECTURE.md`)
-- [ ] Final `cd backend && ./gradlew test && cd ../frontend && npm test` from a clean checkout (`git stash` any local-only configs first)
+- [x] Once every checkbox above is `[x]`, move this file to `docs/plans/completed/<YYYY-MM-DD>-phase-5-admin-ui.md` (use the actual finish date, matching the convention of `2026-04-27-phase-4-auth.md`)
+- [x] Verify the moved plan renders correctly (no broken relative links to `docs/adr/` or `docs/ARCHITECTURE.md`)
+- [x] Final `cd backend && ./gradlew test && cd ../frontend && npm test` from a clean checkout (`git stash` any local-only configs first)
 
 ## Post-Completion
 
