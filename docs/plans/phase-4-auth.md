@@ -260,14 +260,14 @@ The single most important test in Phase 4 — implements ADR 0005 step 4 ("Add i
 
 The `users` table from V001 was speculatively added for the original §11 design. Phase 4 has decided to keep auth single-admin and stateless, so the table is unused. V005 drops it. V001–V004 stay immutable.
 
-- [ ] Create `V005__drop_unused_users_table.sql` with a single statement: `DROP TABLE IF EXISTS users;` (idempotent — SQLite's plain `DROP TABLE` errors on missing table, and the `IF EXISTS` guard keeps migrations replayable on repaired databases)
-- [ ] Do NOT modify V001, V002, V003, or V004
-- [ ] **Update `MigrationsTest.kt:49` `expectedTables`**: remove `"users"` from the `setOf(...)`. After this edit the line reads `val expectedTables = setOf("documents", "chunks", "images", "config", "schema_version")`. Without this edit the existing `all expected tables exist after migration` test fails immediately on V005
-- [ ] MigrationsTest case: after V005 applies, `SELECT name FROM sqlite_master WHERE type='table' AND name='users'` returns no rows
-- [ ] MigrationsTest case: `schema_version` records version 5
-- [ ] MigrationsTest case: V005 is idempotent — running `Migrations(conn).apply()` twice on the same connection does not throw (proves the `IF EXISTS` guard)
-- [ ] MigrationsTest case: existing assertions on documents/chunks/images/config tables still pass after V005
-- [ ] Verify: `cd backend && ./gradlew test`
+- [x] Create `V005__drop_unused_users_table.sql` with a single statement: `DROP TABLE IF EXISTS users;` (idempotent — SQLite's plain `DROP TABLE` errors on missing table, and the `IF EXISTS` guard keeps migrations replayable on repaired databases)
+- [x] Do NOT modify V001, V002, V003, or V004
+- [x] **Update `MigrationsTest.kt:49` `expectedTables`**: remove `"users"` from the `setOf(...)`. After this edit the line reads `val expectedTables = setOf("documents", "chunks", "images", "config", "schema_version")`. Without this edit the existing `all expected tables exist after migration` test fails immediately on V005
+- [x] MigrationsTest case: after V005 applies, `SELECT name FROM sqlite_master WHERE type='table' AND name='users'` returns no rows
+- [x] MigrationsTest case: `schema_version` records version 5
+- [x] MigrationsTest case: V005 is idempotent — running `Migrations(conn).apply()` twice on the same connection does not throw (proves the `IF EXISTS` guard)
+- [x] MigrationsTest case: existing assertions on documents/chunks/images/config tables still pass after V005
+- [x] Verify: `cd backend && ./gradlew test`
 
 ### Task 10: Update docker-compose.dev.yml and .env.example
 

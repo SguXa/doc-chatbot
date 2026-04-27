@@ -46,7 +46,7 @@ class MigrationsTest {
         conn.use {
             Migrations(it).apply()
 
-            val expectedTables = setOf("users", "documents", "chunks", "images", "config", "schema_version")
+            val expectedTables = setOf("documents", "chunks", "images", "config", "schema_version")
             val actualTables = mutableSetOf<String>()
 
             val rs = it.createStatement().executeQuery(
@@ -480,6 +480,52 @@ class MigrationsTest {
             )
             rs.next()
             assertEquals(1, rs.getInt(1), "system_prompt row should exist exactly once after a double apply()")
+        }
+    }
+
+    // --- V005 tests: drop unused users table ---
+
+    @Test
+    fun `V005 - users table does not exist after migration`() {
+        val conn = inMemoryConnection()
+        conn.use {
+            Migrations(it).apply()
+
+            val rs = it.createStatement().executeQuery(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name='users'"
+            )
+            assertTrue(!rs.next(), "Expected users table to be dropped by V005")
+        }
+    }
+
+    @Test
+    fun `V005 - schema_version records version 5`() {
+        val conn = inMemoryConnection()
+        conn.use {
+            Migrations(it).apply()
+
+            val rs = it.createStatement().executeQuery(
+                "SELECT version, name FROM schema_version WHERE version = 5"
+            )
+            assertTrue(rs.next(), "Expected version 5 to be recorded")
+            assertEquals(5, rs.getInt("version"))
+            assertEquals("drop_unused_users_table", rs.getString("name"))
+        }
+    }
+
+    @Test
+    fun `V005 - is idempotent across repeated apply calls`() {
+        val conn = inMemoryConnection()
+        conn.use {
+            Migrations(it).apply()
+            assertDoesNotThrow {
+                Migrations(it).apply()
+            }
+
+            val rs = it.createStatement().executeQuery(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name='users'"
+            )
+            assertTrue(!rs.next(), "users table should remain absent after a second apply()")
         }
     }
 }
