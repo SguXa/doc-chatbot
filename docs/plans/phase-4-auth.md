@@ -319,12 +319,12 @@ Records the auth design choice and the §11.2 amendment.
 
 Six targeted edits.
 
-- [ ] §2.1 — in the SQLite row's "Purpose" column, drop the `users` mention. Current text: "Documents, chunks, users, embeddings" → new: "Documents, chunks, embeddings"
-- [ ] §3.1 — in the ASCII deployment diagram, remove the `- users` line from the SQLite contents block (current line ~124: `│  └───────────────┘   │ - users       │`). Either delete the line entirely and re-pad the box, or replace it with a remaining-table line if the box width is tied to that row
-- [ ] §6.1 — remove the `users` table block from the schema listing (CREATE TABLE users at line ~430). Replace with a one-line note: "_The `users` table created by V001 was dropped in V005 — see ADR 0007._"
-- [ ] §7.4 — add a sentence under `POST /api/auth/login`: "_The `username` field is accepted for forward-compatibility with future multi-user support but is ignored by the server in Phase 4. Only `password` is validated. See ADR 0007._" Update the example response so `user.username = "admin"` and `user.role = "admin"` are clearly constants, not variables
-- [ ] §11.1 — simplify the JWT configuration table to: Algorithm HS256, Expiration 24 hours, Issuer `aos-chatbot`. Drop the "(Planned for Phase 4)" tag. Add a sentence: "No `aud` claim. No `role` claim — the single administrator is identified by token validity alone. See ADR 0007."
-- [ ] §11.2 — rewrite the protected-routes table to:
+- [x] §2.1 — in the SQLite row's "Purpose" column, drop the `users` mention. Current text: "Documents, chunks, users, embeddings" → new: "Documents, chunks, embeddings"
+- [x] §3.1 — in the ASCII deployment diagram, remove the `- users` line from the SQLite contents block (current line ~124: `│  └───────────────┘   │ - users       │`). Either delete the line entirely and re-pad the box, or replace it with a remaining-table line if the box width is tied to that row
+- [x] §6.1 — remove the `users` table block from the schema listing (CREATE TABLE users at line ~430). Replace with a one-line note: "_The `users` table created by V001 was dropped in V005 — see ADR 0007._"
+- [x] §7.4 — add a sentence under `POST /api/auth/login`: "_The `username` field is accepted for forward-compatibility with future multi-user support but is ignored by the server in Phase 4. Only `password` is validated. See ADR 0007._" Update the example response so `user.username = "admin"` and `user.role = "admin"` are clearly constants, not variables
+- [x] §11.1 — simplify the JWT configuration table to: Algorithm HS256, Expiration 24 hours, Issuer `aos-chatbot`. Drop the "(Planned for Phase 4)" tag. Add a sentence: "No `aud` claim. No `role` claim — the single administrator is identified by token validity alone. See ADR 0007."
+- [x] §11.2 — rewrite the protected-routes table to:
   | Route Pattern | Auth |
   |---------------|------|
   | `/api/admin/*` | required |
@@ -333,9 +333,9 @@ Six targeted edits.
   | `/api/health/*` | public |
   | `/api/auth/*` | public |
   Drop the `(Planned for Phase 4)` tag. Add: "Chat is intentionally public — see ADR 0007 for the rationale and ADR 0005 for the deployment-mode constraint that contains this exposure to internal networks. `/api/config/*` endpoints are not registered in Phase 4 (see §7.3); they will be admin-protected by the same `jwt-admin` provider when Phase 5 ships them."
-- [ ] §11.3 — replace "Default Admin User" subsection with: "**Single administrator.** A single operator authenticates with the password supplied via the `ADMIN_PASSWORD` environment variable. The password is bcrypt-hashed in memory at startup and is **not persisted**. To rotate the password, change the env var and restart the service. There is no `users` table in the database — see ADR 0007."
-- [ ] §12.1 — for `JWT_SECRET` and `ADMIN_PASSWORD`, change the inline note from "Auth (Phase 4+) — not consumed by the backend until auth lands" to "Required in `MODE=full` and `MODE=admin`; ignored in `MODE=client`. The application refuses to start if either is missing in the relevant modes."
-- [ ] §15 — find the Phase 4 checklist (if it exists) and mark items `[x]` as appropriate. If the section is a static listing, leave it alone; this is a docs-hygiene step, not a contract change
+- [x] §11.3 — replace "Default Admin User" subsection with: "**Single administrator.** A single operator authenticates with the password supplied via the `ADMIN_PASSWORD` environment variable. The password is bcrypt-hashed in memory at startup and is **not persisted**. To rotate the password, change the env var and restart the service. There is no `users` table in the database — see ADR 0007."
+- [x] §12.1 — for `JWT_SECRET` and `ADMIN_PASSWORD`, change the inline note from "Auth (Phase 4+) — not consumed by the backend until auth lands" to "Required in `MODE=full` and `MODE=admin`; ignored in `MODE=client`. The application refuses to start if either is missing in the relevant modes."
+- [x] §15 — find the Phase 4 checklist (if it exists) and mark items `[x]` as appropriate. If the section is a static listing, leave it alone; this is a docs-hygiene step, not a contract change
 
 ### Task 13: Update CLAUDE.md and README.md
 

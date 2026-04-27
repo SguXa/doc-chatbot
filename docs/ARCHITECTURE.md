@@ -64,7 +64,7 @@ AOS Documentation Chatbot is an **offline RAG (Retrieval-Augmented Generation) s
 | **Backend** | Kotlin + Ktor | Kotlin 1.9+, Ktor 2.x | REST API, SSE streaming, coroutines |
 | **Frontend** | React + Vite | React 19, Vite 8 | SPA with TypeScript |
 | **UI Components** | shadcn/ui + Tailwind | Latest | Modern, accessible components |
-| **Database** | SQLite | 3.x | Documents, chunks, users, embeddings |
+| **Database** | SQLite | 3.x | Documents, chunks, embeddings |
 | **State Management** | TanStack Query | v5 | Server state, caching |
 
 ### 2.2 AI / ML Stack
@@ -121,7 +121,7 @@ AOS Documentation Chatbot is an **offline RAG (Retrieval-Augmented Generation) s
 │  │               │   │               │   │   │  /data/documents/ │ │
 │  │ - qwen2.5:7b  │   │ - documents   │   │   └───────────────────┘ │
 │  │ - bge-m3     │   │ - chunks      │   │                          │
-│  └───────────────┘   │ - users       │   │                          │
+│  └───────────────┘   │ - images      │   │                          │
 │                      │ - embeddings  │   │                          │
 │                      └───────────────┘   │                          │
 └──────────────────────────────────────────┼──────────────────────────┘
@@ -425,16 +425,9 @@ aos-chatbot/
 
 ### 6.1 SQLite Schema
 
-```sql
--- Users table (for JWT auth)
-CREATE TABLE users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    username TEXT UNIQUE NOT NULL,
-    password_hash TEXT NOT NULL,
-    role TEXT NOT NULL DEFAULT 'user',  -- 'admin' | 'user'
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+_The `users` table created by V001 was dropped in V005 — see [ADR 0007](adr/0007-single-admin-no-persisted-users.md)._
 
+```sql
 -- Documents table
 CREATE TABLE documents (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -764,12 +757,10 @@ Update system prompt.
 }
 ```
 
-### 7.4 Auth Endpoints (Planned for Phase 4)
-
-> **Status: Planned for Phase 4 — not implemented in Phase 2 or Phase 3.** The endpoints below describe the future contract. They are not registered by the current backend. See §11 and [ADR 0005](adr/0005-auth-deferred-out-of-phase-2.md).
+### 7.4 Auth Endpoints
 
 #### POST /api/auth/login
-Authenticate user.
+Authenticate the administrator. _The `username` field is accepted for forward-compatibility with future multi-user support but is ignored by the server in Phase 4. Only `password` is validated. See [ADR 0007](adr/0007-single-admin-no-persisted-users.md)._
 
 **Request:**
 ```json
@@ -779,7 +770,7 @@ Authenticate user.
 }
 ```
 
-**Response:**
+**Response (`username` and `role` in the response are constants — there is no other user):**
 ```json
 {
   "token": "eyJhbGciOiJIUzI1NiIs...",
@@ -791,8 +782,15 @@ Authenticate user.
 }
 ```
 
+**Error responses:**
+
+- `400 Bad Request` with `{"error": "invalid_request", "reason": "malformed_body" | "empty_password"}` — request validation failed.
+- `401 Unauthorized` with `{"error": "invalid_credentials"}` — wrong password.
+
+Only registered in `MODE=full` and `MODE=admin`. In `MODE=client` the route returns 404.
+
 #### POST /api/auth/logout
-Invalidate token.
+Stateless logout — always returns `204 No Content`. The server keeps no session state; JWTs naturally expire after 24 hours. See [ADR 0007](adr/0007-single-admin-no-persisted-users.md).
 
 ### 7.5 Health Endpoints
 
@@ -1101,10 +1099,9 @@ See [ADR 0006](adr/0006-queue-chat-dispatch-with-in-memory-bus.md) for the ratio
 
 ## 11. Authentication
 
-> **Status: deferred to Phase 4 — not implemented in Phase 2 or Phase 3.**
-> During the pre-auth window, admin routes are unprotected. The only acceptable public-facing deployment is `MODE=client` (chat only, no admin routes registered). `MODE=full` and `MODE=admin` MUST be restricted to internal networks until auth lands. See [ADR 0005](adr/0005-auth-deferred-out-of-phase-2.md).
+Phase 4 introduces JWT-based authentication for the admin surface. Single administrator, single pre-shared password from `ADMIN_PASSWORD`. See [ADR 0005](adr/0005-auth-deferred-out-of-phase-2.md) for the deferral context and [ADR 0007](adr/0007-single-admin-no-persisted-users.md) for the single-admin design.
 
-### 11.1 JWT Configuration (Planned for Phase 4)
+### 11.1 JWT Configuration
 
 | Parameter | Value |
 |-----------|-------|
@@ -1112,21 +1109,23 @@ See [ADR 0006](adr/0006-queue-chat-dispatch-with-in-memory-bus.md) for the ratio
 | Expiration | 24 hours |
 | Issuer | aos-chatbot |
 
-### 11.2 Protected Routes (Planned for Phase 4)
+No `aud` claim. No `role` claim — the single administrator is identified by token validity alone. See [ADR 0007](adr/0007-single-admin-no-persisted-users.md).
 
-| Route Pattern | Required Role |
-|---------------|---------------|
-| `/api/chat/*` | user, admin |
-| `/api/admin/*` | admin |
-| `/api/config/*` | admin |
-| `/api/health/*` | (public) |
-| `/api/auth/*` | (public) |
+### 11.2 Protected Routes
 
-### 11.3 Default Admin User (Planned for Phase 4)
+| Route Pattern | Auth |
+|---------------|------|
+| `/api/admin/*` | required |
+| `/api/config/*` | required (when registered in Phase 5) |
+| `/api/chat/*` | public |
+| `/api/health/*` | public |
+| `/api/auth/*` | public |
 
-Created on first startup:
-- Username: `admin`
-- Password: from `ADMIN_PASSWORD` env var or generated
+Chat is intentionally public — see [ADR 0007](adr/0007-single-admin-no-persisted-users.md) for the rationale and [ADR 0005](adr/0005-auth-deferred-out-of-phase-2.md) for the deployment-mode constraint that contains this exposure to internal networks. `/api/config/*` endpoints are not registered in Phase 4 (see §7.3); they will be admin-protected by the same `jwt-admin` provider when Phase 5 ships them.
+
+### 11.3 Single Administrator
+
+**Single administrator.** A single operator authenticates with the password supplied via the `ADMIN_PASSWORD` environment variable. The password is bcrypt-hashed in memory at startup and is **not persisted**. To rotate the password, change the env var and restart the service. There is no `users` table in the database — see [ADR 0007](adr/0007-single-admin-no-persisted-users.md).
 
 ---
 
@@ -1155,7 +1154,9 @@ ARTEMIS_BROKER_URL=tcp://artemis:61616
 ARTEMIS_USER=
 ARTEMIS_PASSWORD=
 
-# Auth (Phase 4+) — not consumed by the backend until auth lands. See ADR 0005.
+# Auth — required in MODE=full and MODE=admin; ignored in MODE=client. The
+# application refuses to start if either is missing in the relevant modes.
+# See ADR 0005 (deferral context) and ADR 0007 (single-admin design).
 JWT_SECRET=your-secret-key-min-32-chars
 ADMIN_PASSWORD=initial-admin-password
 
@@ -1426,7 +1427,7 @@ WARN and are swallowed. See `services/ModelWarmup.kt`.
 
 ### Phase 4: Admin Panel (Week 7)
 
-- [ ] JWT authentication
+- [x] JWT authentication
 - [ ] Document upload UI
 - [ ] Document list/delete
 - [ ] System prompt editor
