@@ -213,7 +213,9 @@ describe('ChatPage', () => {
         mockSseStream([frame('done', { totalTokens: 0 })]),
       )
 
-      const seeded = Array.from({ length: 21 }, (_, i) => ({
+      // 11 user/assistant pairs = 22 done entries, all properly paired so
+      // buildHistory keeps every one of them before slicing.
+      const seeded = Array.from({ length: 22 }, (_, i) => ({
         id: `m${i}`,
         role: (i % 2 === 0 ? 'user' : 'assistant') as 'user' | 'assistant',
         content: `msg-${i}`,
@@ -230,10 +232,114 @@ describe('ChatPage', () => {
 
       const body = parseFetchBody(vi.mocked(globalThis.fetch).mock.calls[0])
       expect(body.history).toHaveLength(20)
-      // Oldest (msg-0) was dropped; msg-1 is now first. Roles alternate
-      // user/assistant by index parity, so msg-1 is assistant, msg-20 is user.
-      expect(body.history[0]).toEqual({ role: 'assistant', content: 'msg-1' })
-      expect(body.history[19]).toEqual({ role: 'user', content: 'msg-20' })
+      // Oldest two (msg-0, msg-1) dropped; msg-2 is now first.
+      expect(body.history[0]).toEqual({ role: 'user', content: 'msg-2' })
+      expect(body.history[19]).toEqual({ role: 'assistant', content: 'msg-21' })
+    })
+
+    it('history filter: drops user messages whose paired assistant did not complete', async () => {
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+        mockSseStream([frame('done', { totalTokens: 0 })]),
+      )
+
+      useChatStore.setState({
+        messages: [
+          { id: 'u1', role: 'user', content: 'Q1', status: 'done' },
+          { id: 'a1', role: 'assistant', content: 'A1', status: 'done' },
+          { id: 'u2', role: 'user', content: 'Q2-failed', status: 'done' },
+          {
+            id: 'a2',
+            role: 'assistant',
+            content: '',
+            status: 'error',
+            uxError: { kind: 'queue_unavailable' },
+          },
+        ],
+        isStreaming: false,
+      })
+
+      renderChatPage()
+      typeAndSend('Q3')
+
+      await waitFor(() => {
+        expect(globalThis.fetch).toHaveBeenCalled()
+      })
+
+      const body = parseFetchBody(vi.mocked(globalThis.fetch).mock.calls[0])
+      // u2 is dropped because its paired a2 is in error; only the completed
+      // u1/a1 pair survives.
+      expect(body.history).toEqual([
+        { role: 'user', content: 'Q1' },
+        { role: 'assistant', content: 'A1' },
+      ])
+    })
+
+    it('stream ends without terminal event → assistant gets an error state with Retry', async () => {
+      // Server returned 200 OK with a body that closes mid-stream — no `done`
+      // and no `error` event arrives. Without the explicit guard the row would
+      // be stuck in queued/processing/streaming with no Retry button.
+      vi.spyOn(globalThis, 'fetch')
+        .mockResolvedValueOnce(
+          mockSseStream([
+            frame('processing', { status: 'Generating response...' }),
+            frame('token', { text: 'partial' }),
+          ]),
+        )
+        .mockResolvedValueOnce(
+          mockSseStream([
+            frame('token', { text: 'recovered' }),
+            frame('done', { totalTokens: 1 }),
+          ]),
+        )
+
+      renderChatPage()
+      typeAndSend('hi')
+
+      await waitFor(() => {
+        const last = useChatStore.getState().messages.at(-1)!
+        expect(last.status).toBe('error')
+      })
+
+      const errored = useChatStore.getState().messages.at(-1)!
+      expect(errored.uxError).toEqual({
+        kind: 'mid_stream',
+        message: 'Connection closed unexpectedly',
+      })
+      expect(useChatStore.getState().isStreaming).toBe(false)
+
+      fireEvent.click(screen.getByRole('button', { name: /retry/i }))
+
+      await waitFor(() => {
+        const last = useChatStore.getState().messages.at(-1)!
+        expect(last.status).toBe('done')
+        expect(last.content).toBe('recovered')
+      })
+    })
+
+    it('200 OK with null body → assistant gets an error state', async () => {
+      // Some proxies / mocks return 200 with no body. streamChat returns
+      // immediately; the orchestration must still surface an error rather
+      // than silently leaving the row in queued state.
+      vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+        new Response(null, {
+          status: 200,
+          headers: { 'Content-Type': 'text/event-stream' },
+        }),
+      )
+
+      renderChatPage()
+      typeAndSend('hi')
+
+      await waitFor(() => {
+        const last = useChatStore.getState().messages.at(-1)!
+        expect(last.status).toBe('error')
+      })
+
+      const errored = useChatStore.getState().messages.at(-1)!
+      expect(errored.uxError).toEqual({
+        kind: 'mid_stream',
+        message: 'Connection closed unexpectedly',
+      })
     })
 
     it('mid-stream error → message ends in error status; clicking Retry reruns successfully', async () => {
@@ -267,6 +373,55 @@ describe('ChatPage', () => {
       })
 
       expect(globalThis.fetch).toHaveBeenCalledTimes(2)
+    })
+
+    it('retry on older failed turn caps history at the retried turn', async () => {
+      // Transcript: Q1/A1 done, Q2/A2 errored, Q3/A3 done. Retrying A2
+      // must not include Q3/A3 as "prior" context — that would feed the
+      // LLM later turns as if they preceded Q2.
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+        mockSseStream([
+          frame('token', { text: 'recovered' }),
+          frame('done', { totalTokens: 1 }),
+        ]),
+      )
+
+      useChatStore.setState({
+        messages: [
+          { id: 'u1', role: 'user', content: 'Q1', status: 'done' },
+          { id: 'a1', role: 'assistant', content: 'A1', status: 'done' },
+          { id: 'u2', role: 'user', content: 'Q2', status: 'done' },
+          {
+            id: 'a2',
+            role: 'assistant',
+            content: '',
+            status: 'error',
+            uxError: { kind: 'queue_unavailable' },
+          },
+          { id: 'u3', role: 'user', content: 'Q3', status: 'done' },
+          { id: 'a3', role: 'assistant', content: 'A3', status: 'done' },
+        ],
+        isStreaming: false,
+      })
+
+      renderChatPage()
+
+      // Multiple Retry buttons could exist; the failed one is on a2.
+      const retryButtons = screen.getAllByRole('button', { name: /retry/i })
+      fireEvent.click(retryButtons[0])
+
+      await waitFor(() => {
+        expect(globalThis.fetch).toHaveBeenCalled()
+      })
+
+      const body = parseFetchBody(vi.mocked(globalThis.fetch).mock.calls[0])
+      expect(body.message).toBe('Q2')
+      // Only Q1/A1 (turns before the retried one) should be in history;
+      // Q3/A3 must not appear.
+      expect(body.history).toEqual([
+        { role: 'user', content: 'Q1' },
+        { role: 'assistant', content: 'A1' },
+      ])
     })
 
     it('pre-SSE 503 backfill_running → countdown shown → second attempt succeeds', async () => {

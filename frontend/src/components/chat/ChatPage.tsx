@@ -4,15 +4,33 @@ import { ChatInput } from './ChatInput'
 import { MessageList } from './MessageList'
 import { BackfillBanner } from './BackfillBanner'
 import { useChatStore } from '@/stores/chatStore'
+import type { Message } from '@/stores/chatStore'
 import { useReadyStatus } from '@/hooks/useReadyStatus'
 import { streamChat } from '@/api/chat'
-import type { ChatRequestBody } from '@/api/chat'
+import type { ChatRequestBody, ChatHistoryEntry } from '@/api/chat'
 import { mapHttpError, mapMidStreamError } from '@/lib/chatErrors'
 
 interface RetryState {
   timeoutId: ReturnType<typeof setTimeout>
   intervalId: ReturnType<typeof setInterval>
   messageId: string
+}
+
+// Drops user messages whose paired assistant reply did not complete (error,
+// or never-started after a pre-SSE failure). Without this, the LLM would see
+// dangling user turns with no answers and waste history slots.
+function buildHistory(messages: Message[]): ChatHistoryEntry[] {
+  const entries: ChatHistoryEntry[] = []
+  for (let i = 0; i < messages.length; i++) {
+    const m = messages[i]
+    if (m.status !== 'done') continue
+    if (m.role === 'user') {
+      const next = messages[i + 1]
+      if (!next || next.role !== 'assistant' || next.status !== 'done') continue
+    }
+    entries.push({ role: m.role, content: m.content })
+  }
+  return entries.slice(-20)
 }
 
 function ChatPage() {
@@ -60,6 +78,7 @@ function ChatPage() {
       const controller = new AbortController()
       controllerRef.current = controller
       useChatStore.getState().setIsStreaming(true)
+      let sawTerminal = false
       try {
         for await (const event of streamChat(body, controller.signal)) {
           const s = useChatStore.getState()
@@ -81,12 +100,24 @@ function ChatPage() {
               s.setSources(messageId, event.sources)
               break
             case 'done':
+              sawTerminal = true
               s.setStatus(messageId, 'done')
               return
             case 'error':
+              sawTerminal = true
               s.setError(messageId, mapMidStreamError(event.message))
               return
           }
+        }
+        // Stream ended (server closed body, proxy dropped, missing body on
+        // 200) without a terminal event and without an abort. Surface as an
+        // error so the assistant row gets a Retry button instead of being
+        // orphaned in queued/processing/streaming.
+        if (!sawTerminal && !controller.signal.aborted) {
+          useChatStore.getState().setError(messageId, {
+            kind: 'mid_stream',
+            message: 'Connection closed unexpectedly',
+          })
         }
       } catch (error) {
         const ux = mapHttpError(error)
@@ -144,10 +175,7 @@ function ChatPage() {
   const handleSend = useCallback(
     (text: string) => {
       const snapshot = useChatStore.getState().messages
-      const history = snapshot
-        .filter((m) => m.status === 'done')
-        .map((m) => ({ role: m.role, content: m.content }))
-        .slice(-20)
+      const history = buildHistory(snapshot)
       const store = useChatStore.getState()
       store.addUserMessage(text)
       const assistantId = store.addAssistantMessage()
@@ -183,13 +211,12 @@ function ChatPage() {
       const userMessage = messages[idx - 1]
       if (userMessage.role !== 'user') return
       const text = userMessage.content
-      const precedingUserId = userMessage.id
       useChatStore.getState().resetAssistantMessage(messageId)
+      // Cap history at messages strictly before the retried user turn so
+      // later turns (Q3/A3 after a failed Q2) don't leak in as "prior"
+      // context for the regenerated answer.
       const after = useChatStore.getState().messages
-      const history = after
-        .filter((m) => m.status === 'done' && m.id !== precedingUserId)
-        .map((m) => ({ role: m.role, content: m.content }))
-        .slice(-20)
+      const history = buildHistory(after.slice(0, idx - 1))
       runStream(messageId, { message: text, history })
     },
     [cancelInFlight, runStream],
