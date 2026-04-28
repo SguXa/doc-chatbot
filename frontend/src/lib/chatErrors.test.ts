@@ -5,6 +5,7 @@ import {
   mapMidStreamError,
   formatChatUxError,
   type ChatUxError,
+  type RenderableChatUxError,
 } from './chatErrors'
 
 describe('mapHttpError', () => {
@@ -93,7 +94,7 @@ describe('mapMidStreamError', () => {
 })
 
 describe('formatChatUxError', () => {
-  const cases: Array<{ name: string; ux: ChatUxError; expected: string }> = [
+  const cases: Array<{ name: string; ux: RenderableChatUxError; expected: string }> = [
     {
       name: 'network_failure',
       ux: { kind: 'network_failure' },

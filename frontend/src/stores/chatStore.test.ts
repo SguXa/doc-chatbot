@@ -78,6 +78,28 @@ describe('chatStore', () => {
       expect(after[0]).toMatchObject({ id, status: 'queued' })
       expect(after[0]).toBe(before[0])
     })
+
+    it('does not resurrect a message in error status', () => {
+      const id = useChatStore.getState().addAssistantMessage()
+      useChatStore.getState().setError(id, { kind: 'network_failure' })
+
+      useChatStore.getState().setStatus(id, 'processing', 'late event')
+
+      const message = useChatStore.getState().messages[0]
+      expect(message.status).toBe('error')
+      expect(message.statusText).toBeUndefined()
+    })
+
+    it('does not resurrect a message in done status', () => {
+      const id = useChatStore.getState().addAssistantMessage()
+      useChatStore.getState().setStatus(id, 'done')
+
+      useChatStore.getState().setStatus(id, 'queued', 'late event')
+
+      const message = useChatStore.getState().messages[0]
+      expect(message.status).toBe('done')
+      expect(message.statusText).toBeUndefined()
+    })
   })
 
   describe('appendToken', () => {
@@ -141,6 +163,23 @@ describe('chatStore', () => {
       useChatStore.getState().setSources(id, sources)
 
       expect(useChatStore.getState().messages[0].sources).toEqual(sources)
+    })
+
+    it('does not attach sources to a message in error status', () => {
+      const id = useChatStore.getState().addAssistantMessage()
+      useChatStore.getState().setError(id, { kind: 'network_failure' })
+
+      useChatStore.getState().setSources(id, [
+        {
+          documentId: 1,
+          documentName: 'Manual.docx',
+          section: null,
+          page: null,
+          snippet: 'late',
+        },
+      ])
+
+      expect(useChatStore.getState().messages[0].sources).toBeUndefined()
     })
   })
 

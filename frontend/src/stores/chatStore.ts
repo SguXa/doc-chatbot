@@ -65,9 +65,14 @@ const useChatStore = create<ChatState>()(
       },
       setStatus: (messageId, status, statusText) =>
         set((state) => ({
-          messages: state.messages.map((m) =>
-            m.id === messageId ? { ...m, status, statusText } : m,
-          ),
+          messages: state.messages.map((m) => {
+            if (m.id !== messageId) return m
+            // Late SSE events buffered before an external abort can still flow
+            // through after a terminal status is set (e.g. handleRetry marking
+            // an in-flight message as error). Don't resurrect terminal rows.
+            if (m.status === 'done' || m.status === 'error') return m
+            return { ...m, status, statusText }
+          }),
         })),
       appendToken: (messageId, text) =>
         set((state) => ({
@@ -86,9 +91,11 @@ const useChatStore = create<ChatState>()(
         })),
       setSources: (messageId, sources) =>
         set((state) => ({
-          messages: state.messages.map((m) =>
-            m.id === messageId ? { ...m, sources } : m,
-          ),
+          messages: state.messages.map((m) => {
+            if (m.id !== messageId) return m
+            if (m.status === 'done' || m.status === 'error') return m
+            return { ...m, sources }
+          }),
         })),
       setError: (messageId, uxError) =>
         set((state) => ({
