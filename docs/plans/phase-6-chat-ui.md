@@ -250,21 +250,21 @@ Replaces placeholder `HomePage` with `ChatPage`. The page renders a 2-column ske
 - Create: `frontend/src/components/chat/ChatSidebar.test.tsx`
 - Modify: `frontend/src/components/chat/ChatPage.tsx`
 
-- [ ] `ChatSidebar.tsx`:
+- [x] `ChatSidebar.tsx`:
   - Outer: `<aside className="w-60 shrink-0 flex flex-col h-full ...">` — explicit `flex flex-col h-full` is required so the `flex-1` runway slot has a determined height to fill (Task 7's `<svg className="w-full h-full">` depends on it)
   - Brand row: Lucide `PlaneTakeoff` (24×24) + product name "AOS Documentation Chatbot" (two lines if needed via `whitespace-pre-line`)
   - `<Button variant="outline" size="sm" className="w-full">` with Lucide `Plus` icon + "New chat"
   - **Click handler logic:** if `useChatStore.getState().messages.length === 0`, **early-return** (no store action). Otherwise opens an `AlertDialog` (shadcn): title "Start a new chat?", description "This will clear the current conversation. You can't undo this.", actions Cancel / Continue. Continue calls `useChatStore.getState().clearAll()`.
   - Below the button: `<div className="flex-1">` placeholder (Task 7 mounts `<RunwayBackground />`)
-- [ ] Mount `<ChatSidebar />` in `ChatPage.tsx` replacing the placeholder
-- [ ] `ChatSidebar.test.tsx`:
+- [x] Mount `<ChatSidebar />` in `ChatPage.tsx` replacing the placeholder
+- [x] `ChatSidebar.test.tsx`:
   - renders brand text and PlaneTakeoff icon
   - clicking "New chat" with empty messages does NOT open dialog and does NOT call `clearAll` (assert via spy on `useChatStore.setState` or explicit no-op check)
   - clicking "New chat" with ≥ 1 message opens the AlertDialog
   - clicking "Cancel" does not clear messages
   - clicking "Continue" clears messages
   - reset store via `useChatStore.setState({ messages: [], isStreaming: false }, true)` in `beforeEach`
-- [ ] Run `cd frontend && npm test` — green before Task 7
+- [x] Run `cd frontend && npm test` — green before Task 7
 
 ### Task 7: `RunwayBackground` SVG + `--accent-magenta`
 
