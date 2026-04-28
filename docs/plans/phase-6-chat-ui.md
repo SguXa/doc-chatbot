@@ -429,12 +429,12 @@ Replaces placeholder `HomePage` with `ChatPage`. The page renders a 2-column ske
 - Modify: `frontend/src/components/chat/AssistantMessage.tsx`
 - Modify: `frontend/src/components/chat/AssistantMessage.test.tsx`
 
-- [ ] Replace the placeholder source list (when `status === 'done'` and `sources` non-empty) with `<div className="mt-4 space-y-2"><h4 className="text-sm font-medium">Sources</h4>{sources.map((s, idx) => <SourceCard key={`${s.documentId}-${idx}`} source={s} />)}</div>`. Key by `documentId-idx` (not array index alone) — `SourceCard` holds local `expanded` state, and `idx` alone could let two cards' state bleed across re-renders if document order shifts. The parent `AssistantMessage` is keyed by `message.id` already, so this scope is sufficient.
-- [ ] Update tests:
+- [x] Replace the placeholder source list (when `status === 'done'` and `sources` non-empty) with `<div className="mt-4 space-y-2"><h4 className="text-sm font-medium">Sources</h4>{sources.map((s, idx) => <SourceCard key={`${s.documentId}-${idx}`} source={s} />)}</div>`. Key by `documentId-idx` (not array index alone) — `SourceCard` holds local `expanded` state, and `idx` alone could let two cards' state bleed across re-renders if document order shifts. The parent `AssistantMessage` is keyed by `message.id` already, so this scope is sufficient.
+- [x] Update tests:
   - source cards render `documentName`
   - sources block absent when `streaming`
   - sources block absent when `done` and `sources` is empty/undefined
-- [ ] Run `cd frontend && npm test` — green before Task 15
+- [x] Run `cd frontend && npm test` — green before Task 15
 
 ### Task 15: `BackfillBanner` reading `useReadyStatus` + page-level blocker
 

@@ -4,6 +4,7 @@ import remarkGfm from 'remark-gfm'
 import { Bot, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { formatChatUxError } from '@/lib/chatErrors'
+import { SourceCard } from './SourceCard'
 import type { Message } from '@/stores/chatStore'
 
 interface AssistantMessageProps {
@@ -82,13 +83,12 @@ function AssistantBody({
         message.sources.length > 0 && (
           <div className="mt-4 space-y-2">
             <h4 className="text-sm font-medium">Sources</h4>
-            <ul className="text-sm text-muted-foreground space-y-1">
-              {message.sources.map((source, idx) => (
-                <li key={`${source.documentId}-${idx}`}>
-                  {source.documentName}
-                </li>
-              ))}
-            </ul>
+            {message.sources.map((source, idx) => (
+              <SourceCard
+                key={`${source.documentId}-${idx}`}
+                source={source}
+              />
+            ))}
           </div>
         )}
     </>

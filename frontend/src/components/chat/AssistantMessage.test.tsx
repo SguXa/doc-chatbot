@@ -114,7 +114,38 @@ describe('AssistantMessage', () => {
     )
     expect(container.querySelector('strong')?.textContent).toBe('markdown')
     expect(screen.getByText('Sources')).toBeInTheDocument()
-    expect(screen.getByText('Manual.docx')).toBeInTheDocument()
+    expect(screen.getByText(/Manual\.docx/)).toBeInTheDocument()
+  })
+
+  it('renders a SourceCard for each source when done', () => {
+    render(
+      <AssistantMessage
+        message={makeMessage({
+          status: 'done',
+          content: 'Answer.',
+          sources: [
+            makeSource({ documentId: 1, documentName: 'Manual.docx' }),
+            makeSource({ documentId: 2, documentName: 'Guide.pdf' }),
+          ],
+        })}
+      />,
+    )
+    expect(screen.getByText(/Manual\.docx/)).toBeInTheDocument()
+    expect(screen.getByText(/Guide\.pdf/)).toBeInTheDocument()
+  })
+
+  it('does not render Sources block while streaming, even if sources are present', () => {
+    render(
+      <AssistantMessage
+        message={makeMessage({
+          status: 'streaming',
+          content: 'partial answer',
+          sources: [makeSource()],
+        })}
+      />,
+    )
+    expect(screen.queryByText('Sources')).not.toBeInTheDocument()
+    expect(screen.queryByText(/Manual\.docx/)).not.toBeInTheDocument()
   })
 
   it('does not render Sources block when done with empty sources', () => {
