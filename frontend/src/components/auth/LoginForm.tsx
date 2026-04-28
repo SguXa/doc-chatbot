@@ -54,6 +54,7 @@ function LoginForm() {
       navigate(target, { replace: true })
     } catch (err) {
       setError(parseApiError(err))
+    } finally {
       setSubmitting(false)
     }
   }

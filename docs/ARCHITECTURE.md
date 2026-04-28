@@ -735,6 +735,8 @@ Import knowledge base from ZIP.
 
 ### 7.3 Config Endpoints
 
+Admin-protected; require `Authorization: Bearer <token>` (see §11.2).
+
 #### GET /api/config/system-prompt
 Get current system prompt.
 
@@ -742,9 +744,15 @@ Get current system prompt.
 ```json
 {
   "prompt": "You are a helpful assistant...",
-  "updatedAt": "2026-04-01T10:00:00Z"
+  "updatedAt": "2026-04-01 10:00:00"
 }
 ```
+
+`updatedAt` is the SQLite-native `YYYY-MM-DD HH:MM:SS` UTC string from the `config.updated_at` column (no `T` separator, no `Z` suffix). UI consumers must format for display.
+
+**Error responses:**
+
+- `500 Internal Server Error` with `{"error": "config_missing"}` — the seeded `system_prompt` row is absent (V004 normally guarantees it; this is a defensive fail-loud branch for manual DB edits).
 
 #### PUT /api/config/system-prompt
 Update system prompt.
@@ -755,6 +763,13 @@ Update system prompt.
   "prompt": "You are an AOS documentation expert..."
 }
 ```
+
+**Response:** same shape as GET — the saved prompt and the new `updatedAt` timestamp.
+
+**Error responses:**
+
+- `400 Bad Request` with `{"error": "invalid_request", "reason": "malformed_body" | "empty_prompt" | "prompt_too_long"}` — body is not valid JSON, prompt is blank, or prompt exceeds the 8000-character cap (UTF-16 code units).
+- `500 Internal Server Error` with `{"error": "config_missing"}` — defensive (post-write read returned no row).
 
 ### 7.4 Auth Endpoints
 
@@ -1115,12 +1130,12 @@ No `aud` claim. No `role` claim — the single administrator is identified by to
 | Route Pattern | Auth |
 |---------------|------|
 | `/api/admin/*` | required |
-| `/api/config/*` | required (when registered in Phase 5) |
+| `/api/config/*` | required |
 | `/api/chat/*` | public |
 | `/api/health/*` | public |
 | `/api/auth/*` | public |
 
-Chat is intentionally public — see [ADR 0007](adr/0007-single-admin-no-persisted-users.md) for the rationale and [ADR 0005](adr/0005-auth-deferred-out-of-phase-2.md) for the deployment-mode constraint that contains this exposure to internal networks. `/api/config/*` endpoints are not registered in Phase 4 (see §7.3); they will be admin-protected by the same `jwt-admin` provider when Phase 5 ships them.
+Chat is intentionally public — see [ADR 0007](adr/0007-single-admin-no-persisted-users.md) for the rationale and [ADR 0005](adr/0005-auth-deferred-out-of-phase-2.md) for the deployment-mode constraint that contains this exposure to internal networks. `/api/config/*` endpoints are registered alongside `/api/admin/*` inside the `jwt-admin` `authenticate { }` block in `Application.kt`.
 
 ### 11.3 Single Administrator
 

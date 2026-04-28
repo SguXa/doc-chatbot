@@ -31,6 +31,8 @@ async function parseBody(response: Response): Promise<unknown> {
   }
 }
 
+const LOGIN_PATH = '/api/auth/login'
+
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const token = useAuthStore.getState().token
 
@@ -47,7 +49,11 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
 
   if (response.status === 401) {
     const body = await parseBody(response)
-    useAuthStore.getState().logout()
+    // Login itself returns 401 on bad password; auto-logout would clobber
+    // any stale token the user is trying to replace.
+    if (path !== LOGIN_PATH) {
+      useAuthStore.getState().logout()
+    }
     throw new UnauthorizedError(response.statusText, body)
   }
 

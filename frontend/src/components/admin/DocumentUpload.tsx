@@ -114,6 +114,9 @@ function DocumentUpload({ isReindexing = false }: DocumentUploadProps) {
         return
       }
       if (xhr.status === 401) {
+        // ProtectedRoute will redirect on the next render; reset() so the
+        // upload zone isn't left in 'parsing' state if it briefly stays mounted.
+        reset()
         useAuthStore.getState().logout()
         return
       }

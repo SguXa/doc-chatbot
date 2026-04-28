@@ -51,8 +51,11 @@ cd backend && OLLAMA_TEST_URL=http://localhost:11434 ./gradlew integrationTest
 ### React Frontend
 - Functional components with TypeScript
 - TanStack Query for server state
-- Zustand only for client-side state that genuinely needs sharing across components (e.g., auth state, when auth lands)
-- shadcn/ui components — do not reinvent
+- Zustand only for client-side state that genuinely needs sharing across components (e.g., `stores/authStore.ts`)
+- shadcn/ui components — do not reinvent. Generated components land in `frontend/src/components/ui/` and are git-tracked
+- Toast notifications use `sonner` (mounted via `components/ui/sonner.tsx`)
+- Tailwind v4 is configured via the Vite plugin (`@tailwindcss/vite`); there is no `tailwind.config.ts` or `postcss.config.js`. Theme tokens live in `frontend/src/index.css` via `@theme`
+- Imports use the `@/*` path alias (configured in `tsconfig.app.json` + `vite.config.ts`); prefer `@/lib/foo` over deep relative paths
 - Named exports from all files
 
 ### Database
@@ -91,7 +94,7 @@ cd backend && OLLAMA_TEST_URL=http://localhost:11434 ./gradlew integrationTest
 4. Honor the image linkage contract and pageNumber policy from ARCHITECTURE.md §8.4 / §8.5
 
 ### Add a UI component
-1. Check shadcn/ui first: `npx shadcn-ui@latest add <component>`
+1. Check shadcn/ui first: `npx shadcn@latest add <component>`
 2. If custom, add under `frontend/src/components/`
 3. Use Tailwind for styling
 
