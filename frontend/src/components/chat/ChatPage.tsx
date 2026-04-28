@@ -99,7 +99,14 @@ function ChatPage() {
         if (controllerRef.current === controller) {
           controllerRef.current = null
         }
-        if (!retryRef.current) {
+        // Clear isStreaming only when no newer run has replaced us. Three
+        // paths reach here:
+        //   1. normal completion → controllerRef just nulled above.
+        //   2. external cancel (clearAll / unmount) → controllerRef already
+        //      nulled by cancelInFlight before our for-await resolved.
+        //   3. replaced by a newer runStream (e.g. handleRetry mid-stream)
+        //      → controllerRef points to the new controller; do not clobber.
+        if (controllerRef.current === null && !retryRef.current) {
           useChatStore.getState().setIsStreaming(false)
         }
       }
@@ -151,6 +158,24 @@ function ChatPage() {
 
   const handleRetry = useCallback(
     (messageId: string) => {
+      // Any other in-progress assistant row would otherwise be left orphaned
+      // when we abort the current stream / pending auto-retry. Mark it as
+      // error so the user has a recovery path (and a Retry button) on it too.
+      const before = useChatStore.getState().messages
+      for (const m of before) {
+        if (
+          m.id !== messageId &&
+          m.role === 'assistant' &&
+          (m.status === 'queued' ||
+            m.status === 'processing' ||
+            m.status === 'streaming')
+        ) {
+          useChatStore.getState().setError(m.id, {
+            kind: 'mid_stream',
+            message: 'Cancelled by retry',
+          })
+        }
+      }
       cancelInFlight()
       const messages = useChatStore.getState().messages
       const idx = messages.findIndex((m) => m.id === messageId)
