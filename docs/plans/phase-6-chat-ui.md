@@ -335,7 +335,7 @@ Replaces placeholder `HomePage` with `ChatPage`. The page renders a 2-column ske
 - Create: `frontend/src/components/chat/MessageList.test.tsx`
 - Modify: `frontend/src/components/chat/ChatPage.tsx`
 
-- [ ] `MessageList.tsx`:
+- [x] `MessageList.tsx`:
   - Subscribes to `useChatStore(s => s.messages)`
   - Empty state: when `messages.length === 0`, render `<EmptyState />`
   - Otherwise, map messages to a row component. Use a tiny inline `MessageRow` switch on `message.role` rendering `<div>{message.content}</div>` for now (Tasks 11–12 swap in real components). The switch must be wrapped in `React.memo` keyed on `message.id` and the whole `message` reference — when only one message in the array changes (the streaming one), only that row re-renders
@@ -343,8 +343,8 @@ Replaces placeholder `HomePage` with `ChatPage`. The page renders a 2-column ske
     - `useLayoutEffect` after every render: if user was at bottom (within 20px), scroll to new bottom
     - Track "is at bottom" via state, updated `onScroll`
     - When not at bottom AND messages exist, render a floating `<Button>` (centered just above input area) labeled "Jump to latest" (Lucide `ChevronDown`). Click scrolls and re-engages pin
-- [ ] Mount `<MessageList />` in `ChatPage`. Wire `useChatStore(s => s.isStreaming)` → `<ChatInput disabled={isStreaming} ... />`
-- [ ] `MessageList.test.tsx`:
+- [x] Mount `<MessageList />` in `ChatPage`. Wire `useChatStore(s => s.isStreaming)` → `<ChatInput disabled={isStreaming} ... />`
+- [x] `MessageList.test.tsx`:
   - empty state renders when no messages
   - messages render their content
   - on scroll up by > 20px from bottom, "Jump to latest" appears
@@ -352,7 +352,7 @@ Replaces placeholder `HomePage` with `ChatPage`. The page renders a 2-column ske
   - new message appended while pinned: `scrollTop` updates to `scrollHeight - clientHeight`
   - new message appended while user scrolled up: `scrollTop` does NOT update
   - **memoization**: appending a token to the streaming message does NOT re-render a prior `done` message (assert via render counter / `React.Profiler` or by spying on the row component's render function)
-- [ ] Run `cd frontend && npm test` — green before Task 11
+- [x] Run `cd frontend && npm test` — green before Task 11
 
 ### Task 11: `UserMessage` component
 
