@@ -560,10 +560,10 @@ This task does not produce code — it is a manual gate before declaring Phase 6
 **Files:**
 - Modify: `docs/ARCHITECTURE.md`
 
-- [ ] In §15 Phase 6 ("Chat UI"), flip every checklist item from `[ ]` to `[x]` (Chat interface, Message streaming, Source cards, Queue status display, History (session only))
-- [ ] Confirm Phase 7 / Phase 8 lists are unchanged from Task 1 (`[ ]` items only — those phases are not yet started)
-- [ ] `cd frontend && npm test` — still green
-- [ ] Commit message: `feat: verify acceptance criteria for Phase 6` (matching the Phase 5 closure pattern)
+- [x] In §15 Phase 6 ("Chat UI"), flip every checklist item from `[ ]` to `[x]` (Chat interface, Message streaming, Source cards, Queue status display, History (session only))
+- [x] Confirm Phase 7 / Phase 8 lists are unchanged from Task 1 (`[ ]` items only — those phases are not yet started)
+- [x] `cd frontend && npm test` — still green
+- [x] Commit message: `feat: verify acceptance criteria for Phase 6` (matching the Phase 5 closure pattern)
 
 ## Post-Completion
 

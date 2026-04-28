@@ -1462,11 +1462,11 @@ WARN and are swallowed. See `services/ModelWarmup.kt`.
 
 ### Phase 6: Chat UI (Week 8-9)
 
-- [ ] Chat interface
-- [ ] Message streaming
-- [ ] Source cards
-- [ ] Queue status display
-- [ ] History (session only)
+- [x] Chat interface
+- [x] Message streaming
+- [x] Source cards
+- [x] Queue status display
+- [x] History (session only)
 
 > Export/Import deferred to Phase 7.
 
