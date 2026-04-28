@@ -444,19 +444,19 @@ Replaces placeholder `HomePage` with `ChatPage`. The page renders a 2-column ske
 - Modify: `frontend/src/components/chat/ChatPage.tsx`
 - Modify: `frontend/src/components/chat/ChatPage.test.tsx`
 
-- [ ] `BackfillBanner.tsx`:
+- [x] `BackfillBanner.tsx`:
   - Calls `useReadyStatus()`. If `status === 'running'`, render a yellow banner: "Knowledge base is being prepared. You can ask questions, but expect a short wait." Otherwise return `null`
-- [ ] In `ChatPage.tsx`:
+- [x] In `ChatPage.tsx`:
   - Read `useReadyStatus()` once
   - If `status === 'failed'`: render a centered red-bordered card replacing the message list + input area: "Knowledge base unavailable. Please contact your administrator." (Sidebar continues to render normally)
   - Otherwise: mount `<BackfillBanner />` above `<MessageList />`; mount input as usual
-- [ ] `BackfillBanner.test.tsx`:
+- [x] `BackfillBanner.test.tsx`:
   - mock `useReadyStatus` returning `running` → banner renders
   - mock returning `failed` / `idle` / `ready` → null
-- [ ] Update `ChatPage.test.tsx`:
+- [x] Update `ChatPage.test.tsx`:
   - `status: 'failed'` → blocker renders, `MessageList` and `ChatInput` do NOT render
   - `status: 'running'` → banner renders, message list and input render
-- [ ] Run `cd frontend && npm test` — green before Task 16
+- [x] Run `cd frontend && npm test` — green before Task 16
 
 ### Task 16: Full chat orchestration in `ChatPage`
 
