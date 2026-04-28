@@ -4,6 +4,7 @@ import { useChatStore, type Message } from '@/stores/chatStore'
 import { Button } from '@/components/ui/button'
 import { EmptyState } from './EmptyState'
 import { UserMessage } from './UserMessage'
+import { AssistantMessage } from './AssistantMessage'
 
 const SCROLL_THRESHOLD_PX = 20
 
@@ -11,7 +12,12 @@ const SCROLL_THRESHOLD_PX = 20
 // assert React.memo + store-identity invariants. One Map.set per row render.
 const __messageRowRenderCounts = new Map<string, number>()
 
-const MessageRow = memo(function MessageRow({ message }: { message: Message }) {
+interface MessageRowProps {
+  message: Message
+  onRetry?: (messageId: string) => void
+}
+
+const MessageRow = memo(function MessageRow({ message, onRetry }: MessageRowProps) {
   __messageRowRenderCounts.set(
     message.id,
     (__messageRowRenderCounts.get(message.id) ?? 0) + 1,
@@ -19,10 +25,14 @@ const MessageRow = memo(function MessageRow({ message }: { message: Message }) {
   if (message.role === 'user') {
     return <UserMessage message={message} />
   }
-  return <div data-message-id={message.id}>{message.content}</div>
+  return <AssistantMessage message={message} onRetry={onRetry} />
 })
 
-function MessageList() {
+interface MessageListProps {
+  onRetry?: (messageId: string) => void
+}
+
+function MessageList({ onRetry }: MessageListProps = {}) {
   const messages = useChatStore((s) => s.messages)
   const containerRef = useRef<HTMLDivElement | null>(null)
   const [isAtBottom, setIsAtBottom] = useState(true)
@@ -60,7 +70,7 @@ function MessageList() {
         className="h-full overflow-y-auto"
       >
         {messages.map((m) => (
-          <MessageRow key={m.id} message={m} />
+          <MessageRow key={m.id} message={m} onRetry={onRetry} />
         ))}
       </div>
       {!isAtBottom && (

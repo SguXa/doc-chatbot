@@ -380,8 +380,8 @@ Replaces placeholder `HomePage` with `ChatPage`. The page renders a 2-column ske
 - Modify: `frontend/src/components/chat/MessageList.tsx`
 - Modify: `frontend/package.json`
 
-- [ ] Add deps: `npm install react-markdown remark-gfm` (commit `package.json` + `package-lock.json`)
-- [ ] `AssistantMessage.tsx`, wrapped in `React.memo`:
+- [x] Add deps: `npm install react-markdown remark-gfm` (commit `package.json` + `package-lock.json`)
+- [x] `AssistantMessage.tsx`, wrapped in `React.memo`:
   - Outer: `<div className="flex gap-3 px-4 py-4 bg-muted/50">`
   - Avatar: 32×32 circle with `style={{ backgroundColor: 'var(--accent-magenta)' }}`, white Lucide `Bot` icon
   - Right column:
@@ -391,8 +391,8 @@ Replaces placeholder `HomePage` with `ChatPage`. The page renders a 2-column ske
       - `streaming | done`: `<ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>`. When `done` and `message.sources` non-empty, render placeholder Source list (real `<SourceCard />` lands in Task 14)
       - `error`: red bubble (`<div className="border border-destructive bg-destructive/10 rounded p-3">`) with `formatChatUxError(message.uxError!)`. Below: `<Button onClick={onRetry} variant="outline" size="sm">Retry</Button>`
   - Accept `onRetry?: (messageId: string) => void` prop. Unset → no Retry button
-- [ ] In `MessageList`, render `<AssistantMessage message={msg} onRetry={onRetry} />` for `role === 'assistant'`. Add `onRetry?: (messageId: string) => void` prop on `MessageList`. Wired in Task 16; pass `undefined` for now
-- [ ] `AssistantMessage.test.tsx`:
+- [x] In `MessageList`, render `<AssistantMessage message={msg} onRetry={onRetry} />` for `role === 'assistant'`. Add `onRetry?: (messageId: string) => void` prop on `MessageList`. Wired in Task 16; pass `undefined` for now
+- [x] `AssistantMessage.test.tsx`:
   - `queued` renders `Loader2` + `statusText`
   - `processing` updated `statusText` renders
   - `streaming` renders markdown content (assert that `**bold**` becomes `<strong>`; a fenced code block becomes `<pre><code>`; a GFM table renders as `<table>`)
@@ -400,7 +400,7 @@ Replaces placeholder `HomePage` with `ChatPage`. The page renders a 2-column ske
   - `error` renders the formatted UX message + Retry button; clicking Retry calls `onRetry(message.id)`
   - **XSS escape**: content `<script>alert(1)</script>` renders as escaped text — the rendered DOM contains NO `<script>` element (assert `container.querySelector('script')` is null and the escaped text appears in `textContent`)
   - assistant avatar uses `var(--accent-magenta)` (`expect(avatar).toHaveStyle('background-color: var(--accent-magenta)')`)
-- [ ] Run `cd frontend && npm test` — green before Task 13
+- [x] Run `cd frontend && npm test` — green before Task 13
 
 ### Task 13: `SourceCard` with Show more
 
