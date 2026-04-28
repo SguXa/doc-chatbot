@@ -361,16 +361,16 @@ Replaces placeholder `HomePage` with `ChatPage`. The page renders a 2-column ske
 - Create: `frontend/src/components/chat/UserMessage.test.tsx`
 - Modify: `frontend/src/components/chat/MessageList.tsx`
 
-- [ ] `UserMessage.tsx`, wrapped in `React.memo`:
+- [x] `UserMessage.tsx`, wrapped in `React.memo`:
   - `<div className="flex gap-3 px-4 py-4">`
   - Left: 32×32 avatar slot (neutral background, Lucide `User` icon)
   - Right: "You" label small/dim, then `<div className="whitespace-pre-wrap">{content}</div>`
-- [ ] In `MessageList`, replace the temporary placeholder for `role === 'user'` with `<UserMessage message={...} />`
-- [ ] `UserMessage.test.tsx`:
+- [x] In `MessageList`, replace the temporary placeholder for `role === 'user'` with `<UserMessage message={...} />`
+- [x] `UserMessage.test.tsx`:
   - renders content text
   - renders "You" label
   - renders the User icon avatar
-- [ ] Run `cd frontend && npm test` — green before Task 12
+- [x] Run `cd frontend && npm test` — green before Task 12
 
 ### Task 12: `AssistantMessage` state-machine + markdown + Retry
 

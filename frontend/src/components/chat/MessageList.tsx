@@ -3,6 +3,7 @@ import { ChevronDown } from 'lucide-react'
 import { useChatStore, type Message } from '@/stores/chatStore'
 import { Button } from '@/components/ui/button'
 import { EmptyState } from './EmptyState'
+import { UserMessage } from './UserMessage'
 
 const SCROLL_THRESHOLD_PX = 20
 
@@ -15,12 +16,10 @@ const MessageRow = memo(function MessageRow({ message }: { message: Message }) {
     message.id,
     (__messageRowRenderCounts.get(message.id) ?? 0) + 1,
   )
-  switch (message.role) {
-    case 'user':
-    case 'assistant':
-    default:
-      return <div data-message-id={message.id}>{message.content}</div>
+  if (message.role === 'user') {
+    return <UserMessage message={message} />
   }
+  return <div data-message-id={message.id}>{message.content}</div>
 })
 
 function MessageList() {
