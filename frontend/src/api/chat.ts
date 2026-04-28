@@ -154,6 +154,11 @@ async function* streamChat(
       buffer += decoder.decode(chunk.value, { stream: true })
 
       for (;;) {
+        // A chunk may contain several buffered events; without this check the
+        // generator would keep yielding them after the consumer aborted between
+        // yields. That would let stale tokens/sources from a cancelled run leak
+        // into a retry that reuses the same assistant id.
+        if (signal.aborted) return
         const nlIndex = buffer.indexOf('\n')
         if (nlIndex === -1) break
         let line = buffer.slice(0, nlIndex)

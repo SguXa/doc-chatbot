@@ -272,6 +272,25 @@ describe('streamChat', () => {
     expect(events).toEqual([{ type: 'token', text: 'hi' }])
   })
 
+  it('stops yielding buffered events when signal aborts between yields in same chunk', async () => {
+    const controller = new AbortController()
+    // One chunk with TWO events. Without the in-loop abort check, the generator
+    // would yield event B after the consumer called abort() on event A.
+    const chunk = frame('token', { text: 'A' }) + frame('token', { text: 'B' })
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(mockSseStream([chunk]))
+
+    const events: ChatStreamEvent[] = []
+    for await (const event of streamChat(
+      { message: 'hi', history: [] },
+      controller.signal,
+    )) {
+      events.push(event)
+      if (events.length === 1) controller.abort()
+    }
+
+    expect(events).toEqual([{ type: 'token', text: 'A' }])
+  })
+
   it('aborts cleanly when AbortSignal fires BEFORE fetch resolves (no AbortError propagated)', async () => {
     const controller = new AbortController()
     controller.abort()
