@@ -156,7 +156,7 @@ Implements the streaming POST + SSE parser. No UI yet. The exported function tak
 
 Maps thrown errors and mid-stream `error` payloads into a tagged UX object. Component layer renders by `kind` only.
 
-- [ ] Define `ChatUxError` discriminated union:
+- [x] Define `ChatUxError` discriminated union:
   - `{ kind: 'backfill_running'; retryAfterSeconds: number }` — 503 + `embedding_backfill_in_progress`. Caller schedules auto-retry.
   - `{ kind: 'backfill_failed'; message: string }` — 503 + `embedding_backfill_failed`. Caller relies on `useReadyStatus` for the page-level blocker (this kind is rare — the readiness probe usually catches `failed` before a chat request).
   - `{ kind: 'queue_unavailable' }` — 503 + `queue_unavailable`. Manual retry.
@@ -164,10 +164,10 @@ Maps thrown errors and mid-stream `error` payloads into a tagged UX object. Comp
   - `{ kind: 'mid_stream'; message: string }` — terminal `event: error` from SSE. Manual retry.
   - `{ kind: 'invalid_request'; reason: string }` — defensive 400. Manual retry.
   - `{ kind: 'unknown'; status?: number; message: string }` — fallback.
-- [ ] Implement `mapHttpError(error: unknown): ChatUxError` — reads `error.retryAfterSeconds` from `ChatHttpError` for `backfill_running`.
-- [ ] Implement `mapMidStreamError(message: string): ChatUxError` — `{ kind: 'mid_stream', message }`.
-- [ ] Implement `formatChatUxError(uxError: ChatUxError): string` — English copy: `network_failure` → "Unable to reach server. Please check your connection.", `queue_unavailable` → "Server is temporarily unavailable. Please try again.", `mid_stream` → "An error occurred: ${message}", `backfill_failed` → "Knowledge base unavailable. Please contact your administrator.", `invalid_request` → "Invalid request: ${reason}", `unknown` → "Unexpected error: ${message}".
-- [ ] `chatErrors.test.ts` — table-driven, exhaustive:
+- [x] Implement `mapHttpError(error: unknown): ChatUxError` — reads `error.retryAfterSeconds` from `ChatHttpError` for `backfill_running`.
+- [x] Implement `mapMidStreamError(message: string): ChatUxError` — `{ kind: 'mid_stream', message }`.
+- [x] Implement `formatChatUxError(uxError: ChatUxError): string` — English copy: `network_failure` → "Unable to reach server. Please check your connection.", `queue_unavailable` → "Server is temporarily unavailable. Please try again.", `mid_stream` → "An error occurred: ${message}", `backfill_failed` → "Knowledge base unavailable. Please contact your administrator.", `invalid_request` → "Invalid request: ${reason}", `unknown` → "Unexpected error: ${message}".
+- [x] `chatErrors.test.ts` — table-driven, exhaustive:
   - `ChatHttpError(503, body, retryAfterSeconds=5)` for `embedding_backfill_in_progress` → `{ kind: 'backfill_running', retryAfterSeconds: 5 }`
   - same with `retryAfterSeconds=10` (default) → `retryAfterSeconds: 10`
   - `ChatHttpError(503, body)` for `embedding_backfill_failed` with `message: 'corrupted db'` → `{ kind: 'backfill_failed', message: 'corrupted db' }`
@@ -177,7 +177,7 @@ Maps thrown errors and mid-stream `error` payloads into a tagged UX object. Comp
   - `new Error('boom')` → `{ kind: 'unknown', message: 'boom' }`
   - `mapMidStreamError('LLM timed out')` → `{ kind: 'mid_stream', message: 'LLM timed out' }`
   - `formatChatUxError` produces the documented English copy for each kind
-- [ ] Run `cd frontend && npm test` — green before Task 4
+- [x] Run `cd frontend && npm test` — green before Task 4
 
 ### Task 4: `chatStore` Zustand store with `persist` middleware
 
