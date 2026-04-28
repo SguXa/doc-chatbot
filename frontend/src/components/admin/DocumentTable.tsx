@@ -91,6 +91,11 @@ function DocumentTable({ documents, isReindexing = false }: DocumentTableProps) 
     },
     onError: (error) => {
       const parsed = parseApiError(error)
+      if (parsed.kind === 'reindex_in_progress') {
+        // Self-heal a stale readiness view: server says reindex is running,
+        // so the UI's gate should be active even if our last poll missed it.
+        queryClient.invalidateQueries({ queryKey: ['ready'] })
+      }
       toast.error(parsed.message)
       setPendingDelete(null)
     },

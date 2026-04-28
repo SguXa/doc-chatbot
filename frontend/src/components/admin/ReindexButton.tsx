@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { RotateCw } from 'lucide-react'
 import { reindex } from '@/api/admin'
+import type { ReadyStatus } from '@/api/admin'
 import { useReadyStatus } from '@/hooks/useReadyStatus'
 import { parseApiError } from '@/lib/errors'
 import { Button } from '@/components/ui/button'
@@ -25,13 +26,18 @@ function ReindexButton() {
     mutationFn: reindex,
     onSuccess: () => {
       toast.success('Reindex started')
-      queryClient.invalidateQueries({ queryKey: ['ready'] })
+      // Optimistically reflect "running" locally instead of invalidating.
+      // The backend launches the reindex in a coroutine after returning 202,
+      // so an immediate refetch can race the coroutine startup and observe
+      // the prior idle/completed status — which would leave polling off
+      // and re-enable mutating controls mid-reindex.
+      queryClient.setQueryData<ReadyStatus>(['ready'], { backfill: { status: 'running' } })
     },
     onError: (error) => {
       const parsed = parseApiError(error)
       if (parsed.kind === 'reindex_in_progress') {
         toast.success('Reindex started')
-        queryClient.invalidateQueries({ queryKey: ['ready'] })
+        queryClient.setQueryData<ReadyStatus>(['ready'], { backfill: { status: 'running' } })
         return
       }
       toast.error(parsed.message)

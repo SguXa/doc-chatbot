@@ -129,6 +129,11 @@ function DocumentUpload({ isReindexing = false }: DocumentUploadProps) {
         toast.error(parsed.message)
         return
       }
+      if (parsed.kind === 'reindex_in_progress') {
+        // Server tells us a reindex is running; refresh the readiness query
+        // so the UI catches up if it had a stale view of backfill status.
+        queryClient.invalidateQueries({ queryKey: ['ready'] })
+      }
       setStatus('error')
       setError(parsed)
       toast.error(parsed.message)

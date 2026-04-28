@@ -14,12 +14,12 @@ function AdminLayout() {
   const navigate = useNavigate()
   const logout = useAuthStore((s) => s.logout)
 
-  async function handleLogout() {
-    try {
-      await apiPost('/api/auth/logout')
-    } catch {
-      // ignore: backend logout is decorative; local state is the source of truth
-    }
+  function handleLogout() {
+    // Fire-and-forget per ADR 0007: the server is stateless, so logout
+    // success is decided by the local store, not by the network. Awaiting
+    // would tie sign-out to backend reachability — a slow or unreachable
+    // /api/auth/logout would leave the user stuck inside protected UI.
+    apiPost('/api/auth/logout').catch(() => {})
     logout()
     navigate('/login', { replace: true })
   }

@@ -60,20 +60,29 @@ describe('api/admin', () => {
       expect(headers).not.toHaveProperty('Authorization')
     })
 
-    it('falls back to idle on network failure', async () => {
+    it('rethrows on network failure so TanStack Query keeps last data', async () => {
       vi.spyOn(globalThis, 'fetch').mockRejectedValue(new TypeError('offline'))
 
-      const result = await fetchReady()
-
-      expect(result).toEqual({ backfill: { status: 'idle' } })
+      await expect(fetchReady()).rejects.toThrow(/offline/)
     })
 
-    it('falls back to idle on non-JSON body', async () => {
+    it('rethrows on non-JSON body so polling can keep last known status', async () => {
       mockFetch(new Response('not json', { status: 200 }))
 
-      const result = await fetchReady()
+      await expect(fetchReady()).rejects.toThrow()
+    })
 
-      expect(result).toEqual({ backfill: { status: 'idle' } })
+    it('rethrows when body has an unrecognized status field', async () => {
+      mockFetch(
+        new Response(JSON.stringify({ backfill: { status: 'mystery' } }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      )
+
+      await expect(fetchReady()).rejects.toThrow(
+        /Invalid \/api\/health\/ready response shape/,
+      )
     })
   })
 
