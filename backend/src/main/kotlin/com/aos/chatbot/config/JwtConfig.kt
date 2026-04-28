@@ -22,7 +22,7 @@ import java.util.Date
 class JwtConfig(
     private val secret: String,
     private val issuer: String = "aos-chatbot",
-    private val ttlSeconds: Long = 86_400,
+    val ttlSeconds: Long = 86_400,
     private val clock: Clock = Clock.systemUTC()
 ) {
     init {

@@ -26,7 +26,7 @@ import io.ktor.server.routing.route
  * `POST /api/auth/logout` is stateless and always returns 204; JWTs naturally
  * expire after their TTL and there is no server-side revocation list.
  */
-fun Route.authRoutes(authService: AuthService, ttlSeconds: Long) {
+fun Route.authRoutes(authService: AuthService) {
     route("/api/auth") {
         post("/login") {
             val body = try {
@@ -57,7 +57,7 @@ fun Route.authRoutes(authService: AuthService, ttlSeconds: Long) {
                 HttpStatusCode.OK,
                 LoginResponse(
                     token = token,
-                    expiresIn = ttlSeconds,
+                    expiresIn = authService.tokenTtlSeconds,
                     user = UserInfo(username = "admin", role = "admin")
                 )
             )

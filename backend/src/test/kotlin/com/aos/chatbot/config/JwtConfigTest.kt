@@ -77,6 +77,8 @@ class JwtConfigTest {
         val jwt = JwtConfig(secret = secret32)
         val token = jwt.sign()
         val v = jwt.verifier()
-        v.verify(token)
+        val decoded = v.verify(token)
+        assertEquals("aos-chatbot", decoded.issuer)
+        assertEquals("admin", decoded.subject)
     }
 }

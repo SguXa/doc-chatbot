@@ -292,7 +292,7 @@ aos-chatbot/
 │       │   │   │   ├── SearchService.kt     # In-memory vector search (Phase 3)
 │       │   │   │   ├── LlmService.kt        # Ollama qwen2.5 (Phase 3)
 │       │   │   │   ├── QueueService.kt      # Artemis JMS (Phase 3+)
-│       │   │   │   ├── AuthService.kt       # JWT handling (Phase 4)
+│       │   │   │   ├── AuthService.kt       # JWT handling (single admin, see §11)
 │       │   │   │   └── ExportService.kt     # Knowledge base export (Phase 5)
 │       │   │   │
 │       │   │   ├── parsers/
@@ -314,7 +314,6 @@ aos-chatbot/
 │       │   │   │   ├── ExtractedImage.kt
 │       │   │   │   ├── ParsedContent.kt     # TextBlock + ImageData
 │       │   │   │   ├── ChatMessage.kt       # Phase 3
-│       │   │   │   ├── User.kt              # Phase 4
 │       │   │   │   └── QueueEvent.kt        # Phase 3+
 │       │   │   │
 │       │   │   └── db/
@@ -684,7 +683,7 @@ Upload, parse, and index a document **synchronously**. The response is returned 
 
 **Execution model — synchronous (durable contract).** The endpoint blocks for the full parse/persist pipeline and returns the final outcome in one request/response. There is no `jobId`, no `status: "indexing"` polling, and no separate job status endpoint. If a future phase needs async upload it will introduce a **new endpoint**, not mutate the shape of `POST /api/admin/documents`. See [ADR 0001](adr/0001-synchronous-document-upload.md) for the full rationale.
 
-**Deployment note — pre-auth window.** Until Phase 4 introduces authentication (§11), `POST /api/admin/documents` and the other admin routes are **unprotected**. The only acceptable public-facing deployment mode is `MODE=client`, which exposes chat only and registers no admin routes. `MODE=full` and `MODE=admin` must be restricted to internal networks until auth lands. Application startup emits a `WARN` log line in unprotected modes. See [ADR 0005](adr/0005-auth-deferred-out-of-phase-2.md).
+**Deployment note.** As of Phase 4, admin routes require `Authorization: Bearer <token>` (§11). `MODE=full` and `MODE=admin` should still be restricted to operator workstations or VPN — chat remains public on the same listener and there is no rate limiting in Phase 4. See [ADR 0005](adr/0005-auth-deferred-out-of-phase-2.md) for the deferral context and [ADR 0007](adr/0007-single-admin-no-persisted-users.md) for the single-admin design.
 
 #### DELETE /api/admin/documents/{id}
 Delete document and all associated chunks/images. Also removes the source file from disk and the image directory.
@@ -1212,6 +1211,12 @@ app {
         user = ${?ARTEMIS_USER}
         password = ${?ARTEMIS_PASSWORD}
     }
+    auth {
+        jwtSecret = ""
+        jwtSecret = ${?JWT_SECRET}
+        adminPassword = ""
+        adminPassword = ${?ADMIN_PASSWORD}
+    }
 }
 ```
 
@@ -1247,9 +1252,10 @@ services:
       - DATABASE_PATH=/data/aos.db
       - OLLAMA_URL=http://ollama:11434
       - ARTEMIS_BROKER_URL=tcp://artemis:61616
-      # Auth env vars (Phase 4+) — uncomment once auth lands. See ADR 0005.
-      # - JWT_SECRET=${JWT_SECRET}
-      # - ADMIN_PASSWORD=${ADMIN_PASSWORD}
+      # Required in MODE=full/admin; the backend refuses to start without them.
+      # See ADR 0007 (single-admin design).
+      - JWT_SECRET=${JWT_SECRET}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
     volumes:
       - aos-data:/data
     ports:

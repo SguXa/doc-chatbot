@@ -26,7 +26,6 @@ class AuthRoutesTest {
 
     private val secret32 = "0123456789abcdef0123456789abcdef"
     private val adminPassword = "S3cr3t!-correct horse battery staple"
-    private val ttlSeconds = 86_400L
 
     private fun newAuthService(): AuthService {
         val jwt = JwtConfig(secret = secret32)
@@ -42,7 +41,7 @@ class AuthRoutesTest {
         val authService = newAuthService()
         application {
             install(ContentNegotiation) { json() }
-            routing { authRoutes(authService, ttlSeconds) }
+            routing { authRoutes(authService) }
         }
 
         val response = client.post("/api/auth/login") {
@@ -64,7 +63,7 @@ class AuthRoutesTest {
         val authService = newAuthService()
         application {
             install(ContentNegotiation) { json() }
-            routing { authRoutes(authService, ttlSeconds) }
+            routing { authRoutes(authService) }
         }
 
         val response = client.post("/api/auth/login") {
@@ -83,7 +82,7 @@ class AuthRoutesTest {
         val authService = newAuthService()
         application {
             install(ContentNegotiation) { json() }
-            routing { authRoutes(authService, ttlSeconds) }
+            routing { authRoutes(authService) }
         }
 
         val response = client.post("/api/auth/login") {
@@ -103,7 +102,7 @@ class AuthRoutesTest {
         val authService = newAuthService()
         application {
             install(ContentNegotiation) { json() }
-            routing { authRoutes(authService, ttlSeconds) }
+            routing { authRoutes(authService) }
         }
 
         val response = client.post("/api/auth/login") {
@@ -123,7 +122,7 @@ class AuthRoutesTest {
         val authService = newAuthService()
         application {
             install(ContentNegotiation) { json() }
-            routing { authRoutes(authService, ttlSeconds) }
+            routing { authRoutes(authService) }
         }
 
         val response = client.post("/api/auth/login") {
@@ -144,7 +143,7 @@ class AuthRoutesTest {
         val authService = newAuthService()
         application {
             install(ContentNegotiation) { json() }
-            routing { authRoutes(authService, ttlSeconds) }
+            routing { authRoutes(authService) }
         }
 
         val response = client.post("/api/auth/logout")

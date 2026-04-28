@@ -203,7 +203,7 @@ fun Application.module() {
             backfillJob = backfillJob
         )
         if (authService != null) {
-            authRoutes(authService, ttlSeconds = 86_400)
+            authRoutes(authService)
         }
         registerModeGatedRoutes(
             mode = appConfig.mode,

@@ -23,6 +23,8 @@ class AuthService(
 
     private val passwordHash: String = hasher.hash(authConfig.adminPassword)
 
+    val tokenTtlSeconds: Long get() = jwtConfig.ttlSeconds
+
     fun login(password: String): String? {
         return if (hasher.verify(password, passwordHash)) jwtConfig.sign() else null
     }
