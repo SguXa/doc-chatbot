@@ -114,22 +114,22 @@ The brainstorm decided Phase 6 = Chat UI only; Phase 7 absorbs Export/Import + s
 
 Implements the streaming POST + SSE parser. No UI yet. The exported function takes a request body and an `AbortSignal`, returns `AsyncIterable<ChatStreamEvent>`. Pre-SSE 503 / 400 responses are JSON, not SSE — handled by throwing `ChatHttpError` before iteration begins.
 
-- [ ] Define types in `chat.ts`:
+- [x] Define types in `chat.ts`:
   - `Source` — `{ documentId: number; documentName: string; section: string | null; page: number | null; snippet: string }` (matches §7.1 SSE `sources` payload)
   - `ChatHistoryEntry` — `{ role: 'user' | 'assistant'; content: string }`
   - `ChatRequestBody` — `{ message: string; history: ChatHistoryEntry[] }`
   - `ChatStreamEvent` — discriminated union: `{ type: 'queued'; position: number; estimatedWait: number }`, `{ type: 'processing'; status: string }`, `{ type: 'token'; text: string }`, `{ type: 'sources'; sources: Source[] }`, `{ type: 'done'; totalTokens: number }`, `{ type: 'error'; message: string }`
-- [ ] Define `ChatHttpError` class with `status: number`, `body: unknown`, **`retryAfterSeconds: number`** (computed from `Retry-After` header at construction; defaults to 10 if absent or unparseable). Static factory `fromResponse(response, body)` reads the header and assigns.
-- [ ] Define helper `parseRetryAfterSeconds(headers: Headers): number` — reads `Retry-After` as integer seconds; returns `10` if absent / unparseable / `'0'`. Exported for reuse and tests.
-- [ ] Implement `streamChat(body: ChatRequestBody, signal: AbortSignal): AsyncIterable<ChatStreamEvent>`:
+- [x] Define `ChatHttpError` class with `status: number`, `body: unknown`, **`retryAfterSeconds: number`** (computed from `Retry-After` header at construction; defaults to 10 if absent or unparseable). Static factory `fromResponse(response, body)` reads the header and assigns.
+- [x] Define helper `parseRetryAfterSeconds(headers: Headers): number` — reads `Retry-After` as integer seconds; returns `10` if absent / unparseable / `'0'`. Exported for reuse and tests.
+- [x] Implement `streamChat(body: ChatRequestBody, signal: AbortSignal): AsyncIterable<ChatStreamEvent>`:
   - POST to `/api/chat` with `Content-Type: application/json`, `Accept: text/event-stream`, `signal`
   - On non-2xx, read JSON body and throw `ChatHttpError.fromResponse(response, body)` (the response is plain JSON in this branch per §7.1 pre-SSE error contract)
   - On 2xx, take `response.body` (`ReadableStream<Uint8Array>`), pipe through `TextDecoderStream`, read line-buffered. Maintain per-frame state: `event` (string), `dataLines` (string[]). On blank line, emit `{ event, data: dataLines.join('\n') }` then reset. On stream end, ignore any partial frame.
   - Map raw SSE frames to `ChatStreamEvent` by event name; `data` is JSON-parsed. Unknown event names are silently ignored (forward-compat).
   - If `signal.aborted` triggers mid-stream, exit the SSE-parsing loop quietly (no throw to consumer).
   - If `signal.aborted` triggers BEFORE the `fetch` resolves (or during response-header read), `fetch` itself rejects with `DOMException: AbortError`. Catch this and return — do NOT propagate to the consumer's `for await`. Concretely: the `streamChat` async generator should treat any `AbortError` (whether from `fetch` or from the stream reader) as a clean termination. The consumer must not see `setError` called as a side-effect of an abort it triggered.
-- [ ] Create `frontend/src/test-utils/sseMocks.ts`: helper `mockSseStream(chunks: string[], { status = 200, headers = {} } = {})` returning a fully-formed `Response` whose `body` is a `ReadableStream<Uint8Array>` enqueueing each chunk. Also export `buildErrorResponse(status, body, headers)` for the pre-SSE error tests.
-- [ ] `chat.test.ts` — table-driven tests using `mockSseStream`:
+- [x] Create `frontend/src/test-utils/sseMocks.ts`: helper `mockSseStream(chunks: string[], { status = 200, headers = {} } = {})` returning a fully-formed `Response` whose `body` is a `ReadableStream<Uint8Array>` enqueueing each chunk. Also export `buildErrorResponse(status, body, headers)` for the pre-SSE error tests.
+- [x] `chat.test.ts` — table-driven tests using `mockSseStream`:
   - emits `queued` event correctly parsed
   - emits `processing` event correctly parsed (covers all three string variants: "Embedding query...", "Searching documents...", "Generating response...")
   - emits multiple `token` events in order, joined by the consumer
@@ -146,7 +146,7 @@ Implements the streaming POST + SSE parser. No UI yet. The exported function tak
   - aborts cleanly when the `AbortSignal` fires BEFORE `fetch` resolves (consumer's `for await` exits silently, no `AbortError` propagated)
   - **Sequenced responses helper**: tests that need two responses from `fetch` (e.g. first call 503, second call 200 stream) use `vi.mocked(fetch).mockImplementationOnce(...)` chained per call. Document this pattern in `sseMocks.ts` as a top-of-file comment with an inline example so Task 16's tests share the convention.
   - `parseRetryAfterSeconds` table-driven: `'10' → 10`, `'abc' → 10`, missing → `10`, `'0' → 10`
-- [ ] Run `cd frontend && npm test` — green before Task 3
+- [x] Run `cd frontend && npm test` — green before Task 3
 
 ### Task 3: Error mapper in `lib/chatErrors.ts`
 
