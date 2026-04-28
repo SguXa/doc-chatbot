@@ -408,20 +408,20 @@ Replaces placeholder `HomePage` with `ChatPage`. The page renders a 2-column ske
 - Create: `frontend/src/components/chat/SourceCard.tsx`
 - Create: `frontend/src/components/chat/SourceCard.test.tsx`
 
-- [ ] `SourceCard.tsx`:
+- [x] `SourceCard.tsx`:
   - Wraps a shadcn `<Card>`
   - Header text: `documentName` always; `§{section}` if non-null/non-empty; `p.{page}` if non-null. Joined with `· ` separator
   - Body: snippet display with `expanded: boolean` state
     - If `snippet.length <= 150`: render full text, no button
     - Else: render `expanded ? snippet : snippet.slice(0, 150).trimEnd() + '…'` plus a `<button>` toggling. Label: `expanded ? 'Show less' : 'Show more'`
-- [ ] `SourceCard.test.tsx`:
+- [x] `SourceCard.test.tsx`:
   - header includes documentName, section, page when all present
   - section omitted when `null`
   - page omitted when `null`
   - snippet ≤ 150 chars: full text, no button
   - snippet > 150 chars: truncated with "Show more"
   - clicking "Show more" expands; clicking "Show less" collapses
-- [ ] Run `cd frontend && npm test` — green before Task 14
+- [x] Run `cd frontend && npm test` — green before Task 14
 
 ### Task 14: Wire `SourceCard` into `AssistantMessage`
 
