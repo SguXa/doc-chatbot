@@ -187,12 +187,12 @@ Maps thrown errors and mid-stream `error` payloads into a tagged UX object. Comp
 
 **Note on pattern divergence from Phase 5:** Phase 5's `authStore` uses manual `hydrate()` against `localStorage`. Phase 6 introduces `persist` middleware (against `sessionStorage`) because chat state is an array with frequent mutations and middleware avoids per-mutation boilerplate. `zustand@^5` already ships `persist` and `createJSONStorage` — no version bump required.
 
-- [ ] Define types:
+- [x] Define types:
   - `Source` — re-imported from `@/api/chat`
   - `MessageStatus` — `'queued' | 'processing' | 'streaming' | 'done' | 'error'`
   - `Message` — `{ id: string; role: 'user' | 'assistant'; content: string; status: MessageStatus; statusText?: string; sources?: Source[]; uxError?: ChatUxError }`
-- [ ] Store shape: `{ messages: Message[]; isStreaming: boolean }`
-- [ ] Actions:
+- [x] Store shape: `{ messages: Message[]; isStreaming: boolean }`
+- [x] Actions:
   - `addUserMessage(content: string): string` — pushes a user message in `done` status, returns its id
   - `addAssistantMessage(): string` — pushes an empty assistant message in `queued` status, returns its id
   - `setStatus(messageId, status: MessageStatus, statusText?: string)` — updates by id; silently no-op if id no longer present (covers race with `clearAll`)
@@ -202,11 +202,11 @@ Maps thrown errors and mid-stream `error` payloads into a tagged UX object. Comp
   - `resetAssistantMessage(messageId)` — flips back to `queued` and clears `content`, `sources`, `uxError`, `statusText`; used by manual retry. **Specced as a store action** (not composed at call site) because the test surface is cleaner — one assertion that resetting clears all fields atomically
   - `setIsStreaming(value: boolean)`
   - `clearAll()` — empties `messages`, sets `isStreaming = false`
-- [ ] Persist with Zustand's `persist` middleware:
+- [x] Persist with Zustand's `persist` middleware:
   - `name: 'aos.chat.session'`
   - `storage: createJSONStorage(() => sessionStorage)`
   - `partialize: (state) => ({ messages: state.messages.filter(m => m.status === 'done' || m.status === 'error') })`
-- [ ] `chatStore.test.ts`:
+- [x] `chatStore.test.ts`:
   - `addUserMessage` / `addAssistantMessage` push correctly with unique ids
   - `setStatus` updates only the named message; no-op for unknown id
   - `appendToken` concatenates and flips `queued`/`processing` → `streaming`; clears `statusText`
@@ -217,7 +217,7 @@ Maps thrown errors and mid-stream `error` payloads into a tagged UX object. Comp
   - `clearAll` empties messages and resets `isStreaming`
   - `partialize` strips in-flight messages — fixture has one of EACH status (`queued`, `processing`, `streaming`, `done`, `error`); force `useChatStore.persist.rehydrate()` on a fresh `sessionStorage` snapshot; assert the surviving set is `[done, error]` (verifies BOTH terminal statuses are kept and BOTH in-flight statuses are stripped)
   - persisted state survives `useChatStore.persist.rehydrate()` cycle
-- [ ] Run `cd frontend && npm test` — green before Task 5
+- [x] Run `cd frontend && npm test` — green before Task 5
 
 ### Task 5: `ChatPage` shell + routing on `/`
 
