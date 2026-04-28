@@ -308,7 +308,7 @@ Replaces placeholder `HomePage` with `ChatPage`. The page renders a 2-column ske
 - Create: `frontend/src/components/chat/ChatInput.test.tsx`
 - Modify: `frontend/src/components/chat/ChatPage.tsx`
 
-- [ ] `ChatInput.tsx`:
+- [x] `ChatInput.tsx`:
   - Props: `onSend(text: string)`, `disabled: boolean`
   - State: `text: string`
   - `<form onSubmit>` with `<Textarea>` (shadcn) + `<Button type="submit">` (Lucide `Send` icon, `aria-label="Send"`)
@@ -317,8 +317,8 @@ Replaces placeholder `HomePage` with `ChatPage`. The page renders a 2-column ske
   - Counter `<span aria-live="polite">{text.length} / 4000</span>` — small gray text below textarea
   - Send disabled when: `disabled` is true OR `text.trim().length === 0` OR `text.length > 4000`
   - On submit: call `onSend(text)`, clear textarea
-- [ ] Mount in `ChatPage` with placeholder `onSend={() => {}}` and `disabled={false}` for now
-- [ ] `ChatInput.test.tsx`:
+- [x] Mount in `ChatPage` with placeholder `onSend={() => {}}` and `disabled={false}` for now
+- [x] `ChatInput.test.tsx`:
   - typing updates the counter
   - Enter calls `onSend` with trimmed text and clears input
   - Shift+Enter inserts a newline and does NOT call `onSend`
@@ -326,7 +326,7 @@ Replaces placeholder `HomePage` with `ChatPage`. The page renders a 2-column ske
   - whitespace-only input does not trigger `onSend`; Send is disabled
   - text > 4000 chars disables Send and is reflected in counter
   - `disabled={true}` disables Send regardless of input
-- [ ] Run `cd frontend && npm test` — green before Task 10
+- [x] Run `cd frontend && npm test` — green before Task 10
 
 ### Task 10: `MessageList` with pin-to-bottom autoscroll + memoization
 
