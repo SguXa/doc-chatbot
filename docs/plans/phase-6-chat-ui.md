@@ -229,19 +229,19 @@ Maps thrown errors and mid-stream `error` payloads into a tagged UX object. Comp
 
 Replaces placeholder `HomePage` with `ChatPage`. The page renders a 2-column skeleton; later tasks fill the slots.
 
-- [ ] Delete the inline `HomePage` function in `App.tsx` and remove its `useQuery` health-check (per Design Decisions: `/api/health` no longer surfaced in UI)
-- [ ] Wire the new route: `<Route path="/" element={<ChatPage />} />`
-- [ ] `ChatPage.tsx`:
+- [x] Delete the inline `HomePage` function in `App.tsx` and remove its `useQuery` health-check (per Design Decisions: `/api/health` no longer surfaced in UI)
+- [x] Wire the new route: `<Route path="/" element={<ChatPage />} />`
+- [x] `ChatPage.tsx`:
   - Top: `<div className="h-screen flex">`
   - Left: `<aside className="w-60 shrink-0 ...">` with placeholder text
   - Right: `<main className="flex-1 flex flex-col">` with placeholders for banner, message list, input
   - The chat content wrapper inside `<main>` is `<div className="max-w-3xl mx-auto w-full ...">` (768px cap, centered)
-- [ ] `ChatPage.test.tsx`:
+- [x] `ChatPage.test.tsx`:
   - renders without crashing
   - has a `<main>` and an `<aside>` landmark
   - the chat content wrapper has `max-w-3xl`
-- [ ] Update `App.test.tsx` — replace assertions on the old `HomePage` text with assertions that the chat page renders at `/`. The "Backend status" assertion goes away.
-- [ ] Run `cd frontend && npm test` — green before Task 6
+- [x] Update `App.test.tsx` — replace assertions on the old `HomePage` text with assertions that the chat page renders at `/`. The "Backend status" assertion goes away.
+- [x] Run `cd frontend && npm test` — green before Task 6
 
 ### Task 6: `ChatSidebar` with logo + `+ New chat` + AlertDialog
 

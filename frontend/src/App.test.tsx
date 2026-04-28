@@ -36,26 +36,10 @@ describe('App', () => {
     useAuthStore.setState({ token: null, isAuthenticated: false })
   })
 
-  it('renders with router and shows title', () => {
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(JSON.stringify({ status: 'healthy' }), { status: 200 }),
-    )
-    renderWithProviders(<App />)
-    expect(screen.getByText('AOS Documentation Chatbot')).toBeInTheDocument()
-  })
-
-  it('shows health status when backend is available', async () => {
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(JSON.stringify({ status: 'healthy' }), { status: 200 }),
-    )
-    renderWithProviders(<App />)
-    expect(await screen.findByText('healthy')).toBeInTheDocument()
-  })
-
-  it('shows unavailable when backend is down', async () => {
-    vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('Network error'))
-    renderWithProviders(<App />)
-    expect(await screen.findByText('unavailable')).toBeInTheDocument()
+  it('renders the chat page at /', () => {
+    const { container } = renderWithProviders(<App />)
+    expect(container.querySelector('main')).not.toBeNull()
+    expect(container.querySelector('aside')).not.toBeNull()
   })
 
   it('redirects unauthenticated visit to /admin/documents to /login', () => {
