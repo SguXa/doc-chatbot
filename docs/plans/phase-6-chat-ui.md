@@ -292,14 +292,14 @@ Replaces placeholder `HomePage` with `ChatPage`. The page renders a 2-column ske
 - Create: `frontend/src/components/chat/EmptyState.tsx`
 - Create: `frontend/src/components/chat/EmptyState.test.tsx`
 
-- [ ] `EmptyState.tsx`:
+- [x] `EmptyState.tsx`:
   - Centered: `<div className="h-full flex items-center justify-center text-center">`
   - Heading: "Ask a question about AOS documentation."
   - Body: small `<ul>` with examples — "What is the MA-03 error code?" and "How do I install component X?". Plain text, no buttons.
-- [ ] `EmptyState.test.tsx`:
+- [x] `EmptyState.test.tsx`:
   - renders heading
   - renders both example questions
-- [ ] Run `cd frontend && npm test` — green before Task 9
+- [x] Run `cd frontend && npm test` — green before Task 9
 
 ### Task 9: `ChatInput` (textarea + counter + Enter / Shift+Enter + Send)
 
