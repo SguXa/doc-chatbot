@@ -84,7 +84,7 @@ Build the operator-facing chat surface that consumes the SSE-streamed `POST /api
 
 The brainstorm decided Phase 6 = Chat UI only; Phase 7 absorbs Export/Import + selected `§16` items; old "Polish" becomes Phase 8. Doing this first keeps `ARCHITECTURE.md` as the source of truth throughout Phase 6 implementation rather than diverging until the final task.
 
-- [ ] In `ARCHITECTURE.md` §15:
+- [x] In `ARCHITECTURE.md` §15:
   - Update Phase 6 heading and checklist:
     - Title: "Phase 6: Chat UI"
     - Items (left as `[ ]` — closure marks land in Task 18): Chat interface, Message streaming, Source cards (was "Source badges"), Queue status display, History (session only)
@@ -93,17 +93,17 @@ The brainstorm decided Phase 6 = Chat UI only; Phase 7 absorbs Export/Import + s
     - Title: "Phase 7: Export/Import + Selected Future Enhancements"
     - Items: `[ ]` Export/Import knowledge base, `[ ]` Stop generation with real Ollama cancellation (requires ADR 0006 follow-up — note that Stop generation is a new entry, not previously listed in §16), `[ ]` System Prompt Preview (debug rendering of final prompt + retrieval context), `[ ]` PDF tables extraction (tabula-java), `[ ]` PDF OCR (tess4j), `[ ]` Document Inspect mode (read-only chunk viewer)
   - Renumber the previous Phase 7 (Polish) to Phase 8: same checklist (Error handling, Loading states, MODE switching, Documentation, Integration tests, Performance testing).
-- [ ] In `ARCHITECTURE.md` §16 "Future Enhancements":
+- [x] In `ARCHITECTURE.md` §16 "Future Enhancements":
   - Remove the rows now scheduled into Phase 7: `System Prompt Preview`, `PDF tables extraction`, `PDF OCR`, `Document Inspect mode`.
   - Keep: Vision LLM, Feedback, Chat History (persistence), Keycloak, Multi-language UI.
   - In the prose paragraph above the table, note that §15 Phase 7 absorbed several items that used to live here.
-- [ ] In `ARCHITECTURE.md` §1.2 "Key Features":
+- [x] In `ARCHITECTURE.md` §1.2 "Key Features":
   - Verify the existing bullet "Admin panel — document management, system prompt editor, export/import" is still accurate. Export/Import remains a planned admin capability (ships in Phase 7) — leave the bullet as-is.
-- [ ] In `CLAUDE.md` "Phase Discipline" section:
+- [x] In `CLAUDE.md` "Phase Discipline" section:
   - Edit the existing "Chat UI and export/import are Phase 6 work" bullet to: "**Export/Import is Phase 7 work** (alongside Stop generation, System Prompt Preview, parser improvements). Phase 8 is Polish (error handling, loading states, MODE switching, integration/performance tests)."
   - Add a new bullet: "**Chat UI (Phase 6):** React chat surface at `/`. Conversation in-memory + `sessionStorage`; no persistence beyond the tab. SSE consumed via hand-rolled `fetch` + `ReadableStream` in `frontend/src/api/chat.ts` (no library). `react-markdown` + `remark-gfm` for assistant text only. No `Stop generation` button — see ADR 0006 known limitation; Phase 7 will pair real cancellation with an ADR update."
-- [ ] In `frontend/src/api/admin.ts`, add a one-line comment above `fetchReady`: `// fetchReady targets a public endpoint (§11.2); used by both admin and chat surfaces.`
-- [ ] `cd frontend && npm test` — still green (this is doc-only + comment; no logic change).
+- [x] In `frontend/src/api/admin.ts`, add a one-line comment above `fetchReady`: `// fetchReady targets a public endpoint (§11.2); used by both admin and chat surfaces.`
+- [x] `cd frontend && npm test` — still green (this is doc-only + comment; no logic change).
 
 ### Task 2: SSE client and event types in `api/chat.ts`
 

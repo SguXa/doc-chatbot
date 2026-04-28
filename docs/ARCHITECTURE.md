@@ -1460,16 +1460,26 @@ WARN and are swallowed. See `services/ModelWarmup.kt`.
 
 > Export/Import deferred to Phase 6.
 
-### Phase 6: Chat UI + Export/Import (Week 8-9)
+### Phase 6: Chat UI (Week 8-9)
 
 - [ ] Chat interface
 - [ ] Message streaming
-- [ ] Source badges
+- [ ] Source cards
 - [ ] Queue status display
 - [ ] History (session only)
-- [ ] Export/Import knowledge base
 
-### Phase 7: Polish (Week 9-10)
+> Export/Import deferred to Phase 7.
+
+### Phase 7: Export/Import + Selected Future Enhancements (Week 9-10)
+
+- [ ] Export/Import knowledge base
+- [ ] Stop generation with real Ollama cancellation (requires ADR 0006 follow-up)
+- [ ] System Prompt Preview (debug rendering of final prompt + retrieval context)
+- [ ] PDF tables extraction (tabula-java)
+- [ ] PDF OCR (tess4j)
+- [ ] Document Inspect mode (read-only chunk viewer)
+
+### Phase 8: Polish (Week 10-11)
 
 - [ ] Error handling
 - [ ] Loading states
@@ -1482,7 +1492,7 @@ WARN and are swallowed. See `services/ModelWarmup.kt`.
 
 ## 16. Future Enhancements
 
-> Items in this section are **not** scoped to any current implementation phase. They are forward-looking enhancements to be planned separately. Do not confuse them with the active `Phase N` work tracked in `docs/plans/`.
+> Items in this section are **not** scoped to any current implementation phase. They are forward-looking enhancements to be planned separately. Do not confuse them with the active `Phase N` work tracked in `docs/plans/`. Several items previously listed here (System Prompt Preview, PDF tables extraction, PDF OCR, Document Inspect mode) have been absorbed into §15 Phase 7 and are no longer in this backlog.
 
 ### Future Feature Backlog
 
@@ -1493,10 +1503,6 @@ WARN and are swallowed. See `services/ModelWarmup.kt`.
 | **Chat History** | Persist conversations (optional) | Low |
 | **Keycloak** | SSO integration for some clients | Medium |
 | **Multi-language UI** | DE + EN interface | Low |
-| **System Prompt Preview** | Render the final prompt with retrieval context without sending it to the LLM, for debugging prompt formulations | Medium |
-| **Document Inspect mode** | Read-only chunk viewer per document, so operators can verify parse quality after upload (candidate for Phase 7) | Medium |
-| **PDF tables extraction** | Use `tabula-java` to recognize tabular structure in PDFs (currently text becomes mush) | Medium |
-| **PDF OCR** | Use `tess4j` for scanned PDFs that currently produce `empty_content` | Low |
 
 ### Scalability Options
 
