@@ -274,17 +274,17 @@ Replaces placeholder `HomePage` with `ChatPage`. The page renders a 2-column ske
 - Modify: `frontend/src/index.css`
 - Modify: `frontend/src/components/chat/ChatSidebar.tsx`
 
-- [ ] Add `--accent-magenta: #C2185B;` to `frontend/src/index.css` inside the `@theme` block
-- [ ] `RunwayBackground.tsx`:
+- [x] Add `--accent-magenta: #C2185B;` to `frontend/src/index.css` inside the `@theme` block
+- [x] `RunwayBackground.tsx`:
   - Inline `<svg viewBox="0 0 240 480" preserveAspectRatio="xMidYMax meet" className="w-full h-full">`
   - Trapezoid: wide base spanning ~80% of width at `y=480`, narrow top spanning ~10% at `y=80`. Fill very light gray; subtle stroke
   - Centerline: short series of dashes along the central axis, shorter / dimmer near the vanishing point
   - Vanishing point: `<circle cx="120" cy="80" r="3" fill="var(--accent-magenta)" />` plus a soft glow (`r=10`, `fill="var(--accent-magenta)"`, `opacity="0.2"` behind it)
-- [ ] Mount `<RunwayBackground />` in the sidebar's `flex-1` slot
-- [ ] `RunwayBackground.test.tsx`:
+- [x] Mount `<RunwayBackground />` in the sidebar's `flex-1` slot
+- [x] `RunwayBackground.test.tsx`:
   - renders an `<svg>` element
   - the magenta vanishing point uses `var(--accent-magenta)` (`expect(circle.getAttribute('fill')).toBe('var(--accent-magenta)')`)
-- [ ] Run `cd frontend && npm test` — green before Task 8
+- [x] Run `cd frontend && npm test` — green before Task 8
 
 ### Task 8: `EmptyState` with text hints
 

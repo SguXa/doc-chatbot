@@ -12,6 +12,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { useChatStore } from '@/stores/chatStore'
+import { RunwayBackground } from './RunwayBackground'
 
 function ChatSidebar() {
   const [confirmOpen, setConfirmOpen] = useState(false)
@@ -47,7 +48,9 @@ function ChatSidebar() {
           New chat
         </Button>
       </div>
-      <div className="flex-1" />
+      <div className="flex-1 flex items-end">
+        <RunwayBackground />
+      </div>
       <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
