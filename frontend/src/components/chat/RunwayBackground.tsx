@@ -1,0 +1,105 @@
+function RunwayBackground() {
+  return (
+    <svg
+      viewBox="0 0 240 480"
+      preserveAspectRatio="xMidYMax meet"
+      className="w-full h-full"
+      aria-hidden="true"
+    >
+      <polygon
+        points="24,480 216,480 132,80 108,80"
+        fill="#f3f4f6"
+        stroke="#d1d5db"
+        strokeWidth="1"
+      />
+      <line
+        x1="120"
+        y1="460"
+        x2="120"
+        y2="430"
+        stroke="#9ca3af"
+        strokeWidth="3"
+        strokeLinecap="round"
+      />
+      <line
+        x1="120"
+        y1="400"
+        x2="120"
+        y2="375"
+        stroke="#9ca3af"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+      />
+      <line
+        x1="120"
+        y1="345"
+        x2="120"
+        y2="325"
+        stroke="#9ca3af"
+        strokeWidth="2"
+        strokeLinecap="round"
+        opacity="0.85"
+      />
+      <line
+        x1="120"
+        y1="295"
+        x2="120"
+        y2="280"
+        stroke="#9ca3af"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        opacity="0.7"
+      />
+      <line
+        x1="120"
+        y1="250"
+        x2="120"
+        y2="240"
+        stroke="#9ca3af"
+        strokeWidth="1.3"
+        strokeLinecap="round"
+        opacity="0.55"
+      />
+      <line
+        x1="120"
+        y1="215"
+        x2="120"
+        y2="207"
+        stroke="#9ca3af"
+        strokeWidth="1"
+        strokeLinecap="round"
+        opacity="0.4"
+      />
+      <line
+        x1="120"
+        y1="180"
+        x2="120"
+        y2="174"
+        stroke="#9ca3af"
+        strokeWidth="0.8"
+        strokeLinecap="round"
+        opacity="0.3"
+      />
+      <line
+        x1="120"
+        y1="148"
+        x2="120"
+        y2="143"
+        stroke="#9ca3af"
+        strokeWidth="0.6"
+        strokeLinecap="round"
+        opacity="0.2"
+      />
+      <circle
+        cx="120"
+        cy="80"
+        r="10"
+        fill="var(--accent-magenta)"
+        opacity="0.2"
+      />
+      <circle cx="120" cy="80" r="3" fill="var(--accent-magenta)" />
+    </svg>
+  )
+}
+
+export { RunwayBackground }

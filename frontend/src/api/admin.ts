@@ -12,6 +12,7 @@ interface ReindexResponse {
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? ''
 
+// fetchReady targets a public endpoint (§11.2); used by both admin and chat surfaces.
 async function fetchReady(): Promise<ReadyStatus> {
   // Errors are intentionally re-thrown: TanStack Query keeps the previous
   // successful data on failure, so a transient blip during a running

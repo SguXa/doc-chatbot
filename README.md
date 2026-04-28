@@ -139,7 +139,7 @@ Features:
 - Document list with per-row delete and a global "Reindex all" action that polls `/api/health/ready` while the backfill runs.
 - System prompt editor at `/admin/system-prompt` with character counter, Discard, and Reset-to-default.
 
-Export/Import lands in Phase 6.
+Export/Import lands in Phase 7.
 
 Production deployment of `MODE=full`/`MODE=admin` should still be restricted to internal networks — chat remains public on the same listener.
 

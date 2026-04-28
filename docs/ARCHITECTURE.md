@@ -371,20 +371,22 @@ aos-chatbot/
 │       │
 │       ├── components/
 │       │   ├── chat/
-│       │   │   ├── ChatContainer.tsx
+│       │   │   ├── ChatPage.tsx
+│       │   │   ├── ChatSidebar.tsx
 │       │   │   ├── MessageList.tsx
-│       │   │   ├── MessageBubble.tsx
+│       │   │   ├── UserMessage.tsx
+│       │   │   ├── AssistantMessage.tsx
+│       │   │   ├── SourceCard.tsx
 │       │   │   ├── ChatInput.tsx
-│       │   │   ├── SourceBadge.tsx
-│       │   │   └── QueueStatus.tsx
+│       │   │   ├── EmptyState.tsx
+│       │   │   ├── BackfillBanner.tsx
+│       │   │   └── RunwayBackground.tsx
 │       │   │
 │       │   ├── admin/
 │       │   │   ├── AdminLayout.tsx
 │       │   │   ├── DocumentList.tsx
 │       │   │   ├── DocumentUpload.tsx
-│       │   │   ├── SystemPromptEditor.tsx
-│       │   │   ├── ExportImport.tsx
-│       │   │   └── SystemStatus.tsx
+│       │   │   └── SystemPromptEditor.tsx
 │       │   │
 │       │   ├── auth/
 │       │   │   ├── LoginForm.tsx
@@ -397,20 +399,24 @@ aos-chatbot/
 │       │       └── ...
 │       │
 │       ├── hooks/
-│       │   ├── useChat.ts               # SSE streaming
-│       │   ├── useDocuments.ts
-│       │   ├── useAuth.ts
-│       │   └── useQueueStatus.ts
+│       │   └── useReadyStatus.ts        # /api/health/ready poller
 │       │
 │       ├── api/
-│       │   ├── client.ts                # Axios/fetch setup
-│       │   └── endpoints.ts
+│       │   ├── client.ts                # Shared fetch wrapper / auth headers
+│       │   ├── chat.ts                  # SSE streaming client (hand-rolled fetch + ReadableStream)
+│       │   └── admin.ts                 # Admin REST endpoints
 │       │
 │       ├── stores/
-│       │   └── authStore.ts             # Zustand for auth state
+│       │   ├── authStore.ts             # Zustand (manual hydrate, localStorage)
+│       │   └── chatStore.ts             # Zustand persist middleware (sessionStorage)
 │       │
-│       └── lib/
-│           └── utils.ts
+│       ├── lib/
+│       │   ├── utils.ts
+│       │   ├── errors.ts
+│       │   └── chatErrors.ts            # Maps HTTP / mid-stream errors to ChatUxError
+│       │
+│       └── test-utils/
+│           └── sseMocks.ts
 │
 └── data/                                 # Mounted volume
     ├── aos.db                            # SQLite database (including `config` table — see §4.3)
@@ -1458,18 +1464,28 @@ WARN and are swallowed. See `services/ModelWarmup.kt`.
 - [x] System prompt editor
 - [x] Reindex UI
 
-> Export/Import deferred to Phase 6.
+> Export/Import deferred to Phase 7.
 
-### Phase 6: Chat UI + Export/Import (Week 8-9)
+### Phase 6: Chat UI (Week 8-9)
 
-- [ ] Chat interface
-- [ ] Message streaming
-- [ ] Source badges
-- [ ] Queue status display
-- [ ] History (session only)
+- [x] Chat interface
+- [x] Message streaming
+- [x] Source cards
+- [x] Queue status display
+- [x] History (session only)
+
+> Export/Import deferred to Phase 7.
+
+### Phase 7: Export/Import + Selected Future Enhancements (Week 9-10)
+
 - [ ] Export/Import knowledge base
+- [ ] Stop generation with real Ollama cancellation (requires ADR 0006 follow-up)
+- [ ] System Prompt Preview (debug rendering of final prompt + retrieval context)
+- [ ] PDF tables extraction (tabula-java)
+- [ ] PDF OCR (tess4j)
+- [ ] Document Inspect mode (read-only chunk viewer)
 
-### Phase 7: Polish (Week 9-10)
+### Phase 8: Polish (Week 10-11)
 
 - [ ] Error handling
 - [ ] Loading states
@@ -1482,7 +1498,7 @@ WARN and are swallowed. See `services/ModelWarmup.kt`.
 
 ## 16. Future Enhancements
 
-> Items in this section are **not** scoped to any current implementation phase. They are forward-looking enhancements to be planned separately. Do not confuse them with the active `Phase N` work tracked in `docs/plans/`.
+> Items in this section are **not** scoped to any current implementation phase. They are forward-looking enhancements to be planned separately. Do not confuse them with the active `Phase N` work tracked in `docs/plans/`. Several items previously listed here (System Prompt Preview, PDF tables extraction, PDF OCR, Document Inspect mode) have been absorbed into §15 Phase 7 and are no longer in this backlog.
 
 ### Future Feature Backlog
 
@@ -1493,10 +1509,6 @@ WARN and are swallowed. See `services/ModelWarmup.kt`.
 | **Chat History** | Persist conversations (optional) | Low |
 | **Keycloak** | SSO integration for some clients | Medium |
 | **Multi-language UI** | DE + EN interface | Low |
-| **System Prompt Preview** | Render the final prompt with retrieval context without sending it to the LLM, for debugging prompt formulations | Medium |
-| **Document Inspect mode** | Read-only chunk viewer per document, so operators can verify parse quality after upload (candidate for Phase 7) | Medium |
-| **PDF tables extraction** | Use `tabula-java` to recognize tabular structure in PDFs (currently text becomes mush) | Medium |
-| **PDF OCR** | Use `tess4j` for scanned PDFs that currently produce `empty_content` | Low |
 
 ### Scalability Options
 
