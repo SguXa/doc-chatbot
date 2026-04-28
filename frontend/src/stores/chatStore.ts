@@ -73,14 +73,13 @@ const useChatStore = create<ChatState>()(
         set((state) => ({
           messages: state.messages.map((m) => {
             if (m.id !== messageId) return m
-            const status: MessageStatus =
-              m.status === 'queued' || m.status === 'processing'
-                ? 'streaming'
-                : m.status
+            // Late tokens after a terminal event must not mutate finalized
+            // content (defensive: backend should not emit these).
+            if (m.status === 'done' || m.status === 'error') return m
             return {
               ...m,
               content: m.content + text,
-              status,
+              status: 'streaming',
               statusText: undefined,
             }
           }),

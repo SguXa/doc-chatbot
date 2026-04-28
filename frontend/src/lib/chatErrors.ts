@@ -1,14 +1,5 @@
 import { ChatHttpError } from '@/api/chat'
 
-type ChatUxErrorKind =
-  | 'backfill_running'
-  | 'backfill_failed'
-  | 'queue_unavailable'
-  | 'network_failure'
-  | 'mid_stream'
-  | 'invalid_request'
-  | 'unknown'
-
 type ChatUxError =
   | { kind: 'backfill_running'; retryAfterSeconds: number }
   | { kind: 'backfill_failed'; message: string }
@@ -69,10 +60,12 @@ function mapMidStreamError(message: string): ChatUxError {
   return { kind: 'mid_stream', message }
 }
 
-function formatChatUxError(uxError: ChatUxError): string {
+// `backfill_running` is intercepted by the orchestrator (auto-retry) and never
+// stored on a message, so it is excluded from the renderable subset.
+type RenderableChatUxError = Exclude<ChatUxError, { kind: 'backfill_running' }>
+
+function formatChatUxError(uxError: RenderableChatUxError): string {
   switch (uxError.kind) {
-    case 'backfill_running':
-      return `Retrying in ${uxError.retryAfterSeconds}s…`
     case 'backfill_failed':
       return 'Knowledge base unavailable. Please contact your administrator.'
     case 'queue_unavailable':
@@ -89,4 +82,4 @@ function formatChatUxError(uxError: ChatUxError): string {
 }
 
 export { mapHttpError, mapMidStreamError, formatChatUxError }
-export type { ChatUxError, ChatUxErrorKind }
+export type { ChatUxError, RenderableChatUxError }

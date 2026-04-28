@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import { ChatSidebar } from './ChatSidebar'
 import { ChatInput } from './ChatInput'
 import { MessageList } from './MessageList'
@@ -23,11 +23,11 @@ function ChatPage() {
   const controllerRef = useRef<AbortController | null>(null)
   const retryRef = useRef<RetryState | null>(null)
 
-  // cancelInFlight + runStream + handleSend + handleRetry are stable refs
-  // (pure closures over the refs, not React state) so we declare them inline
-  // without useCallback. Their identity does not affect any memoized child.
+  // Stable handler identities: callbacks close only over refs and store
+  // accessors (no React state), so empty deps keep MessageRow.memo intact
+  // when ChatPage re-renders on isStreaming/readiness transitions.
 
-  const cancelInFlight = () => {
+  const cancelInFlight = useCallback(() => {
     if (retryRef.current) {
       clearTimeout(retryRef.current.timeoutId)
       clearInterval(retryRef.current.intervalId)
@@ -37,7 +37,7 @@ function ChatPage() {
       controllerRef.current.abort()
       controllerRef.current = null
     }
-  }
+  }, [])
 
   useEffect(() => {
     let prevLength = useChatStore.getState().messages.length
@@ -52,112 +52,123 @@ function ChatPage() {
       unsub()
       cancelInFlight()
     }
-  }, [])
+  }, [cancelInFlight])
 
-  const runStream = async (messageId: string, body: ChatRequestBody) => {
-    cancelInFlight()
-    const controller = new AbortController()
-    controllerRef.current = controller
-    const store = useChatStore.getState()
-    store.setIsStreaming(true)
-    try {
-      for await (const event of streamChat(body, controller.signal)) {
-        const s = useChatStore.getState()
-        switch (event.type) {
-          case 'queued':
-            s.setStatus(
-              messageId,
-              'queued',
-              `In queue (#${event.position}, ~${event.estimatedWait}s)…`,
-            )
-            break
-          case 'processing':
-            s.setStatus(messageId, 'processing', event.status)
-            break
-          case 'token':
-            s.appendToken(messageId, event.text)
-            break
-          case 'sources':
-            s.setSources(messageId, event.sources)
-            break
-          case 'done':
-            s.setStatus(messageId, 'done')
-            break
-          case 'error':
-            s.setError(messageId, mapMidStreamError(event.message))
-            break
+  const runStream = useCallback(
+    async (messageId: string, body: ChatRequestBody) => {
+      cancelInFlight()
+      const controller = new AbortController()
+      controllerRef.current = controller
+      useChatStore.getState().setIsStreaming(true)
+      try {
+        for await (const event of streamChat(body, controller.signal)) {
+          const s = useChatStore.getState()
+          switch (event.type) {
+            case 'queued':
+              s.setStatus(
+                messageId,
+                'queued',
+                `In queue (#${event.position}, ~${event.estimatedWait}s)…`,
+              )
+              break
+            case 'processing':
+              s.setStatus(messageId, 'processing', event.status)
+              break
+            case 'token':
+              s.appendToken(messageId, event.text)
+              break
+            case 'sources':
+              s.setSources(messageId, event.sources)
+              break
+            case 'done':
+              s.setStatus(messageId, 'done')
+              return
+            case 'error':
+              s.setError(messageId, mapMidStreamError(event.message))
+              return
+          }
+        }
+      } catch (error) {
+        const ux = mapHttpError(error)
+        if (ux.kind === 'backfill_running') {
+          scheduleAutoRetry(messageId, body, ux.retryAfterSeconds)
+          return
+        }
+        useChatStore.getState().setError(messageId, ux)
+      } finally {
+        if (controllerRef.current === controller) {
+          controllerRef.current = null
+        }
+        if (!retryRef.current) {
+          useChatStore.getState().setIsStreaming(false)
         }
       }
-    } catch (error) {
-      const ux = mapHttpError(error)
-      if (ux.kind === 'backfill_running') {
-        scheduleAutoRetry(messageId, body, ux.retryAfterSeconds)
-        return
-      }
-      useChatStore.getState().setError(messageId, ux)
-    } finally {
-      if (!retryRef.current) {
-        useChatStore.getState().setIsStreaming(false)
-      }
-      if (controllerRef.current === controller) {
-        controllerRef.current = null
-      }
-    }
-  }
+    },
+    // scheduleAutoRetry is declared below and references runStream itself; we
+    // intentionally omit it from deps to keep this callback's identity stable
+    // (the closure reaches scheduleAutoRetry via the lexical scope at call time).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [cancelInFlight],
+  )
 
-  const scheduleAutoRetry = (
-    messageId: string,
-    body: ChatRequestBody,
-    seconds: number,
-  ) => {
-    let remaining = seconds
-    useChatStore
-      .getState()
-      .setStatus(messageId, 'queued', `Retrying in ${remaining}s…`)
-    const intervalId = setInterval(() => {
-      remaining -= 1
-      if (remaining <= 0) return
+  const scheduleAutoRetry = useCallback(
+    (messageId: string, body: ChatRequestBody, seconds: number) => {
+      let remaining = seconds
       useChatStore
         .getState()
         .setStatus(messageId, 'queued', `Retrying in ${remaining}s…`)
-    }, 1000)
-    const timeoutId = setTimeout(() => {
-      clearInterval(intervalId)
-      retryRef.current = null
-      runStream(messageId, body)
-    }, seconds * 1000)
-    retryRef.current = { timeoutId, intervalId, messageId }
-  }
+      const intervalId = setInterval(() => {
+        remaining -= 1
+        if (remaining <= 0) return
+        useChatStore
+          .getState()
+          .setStatus(messageId, 'queued', `Retrying in ${remaining}s…`)
+      }, 1000)
+      const timeoutId = setTimeout(() => {
+        clearInterval(intervalId)
+        retryRef.current = null
+        runStream(messageId, body)
+      }, seconds * 1000)
+      retryRef.current = { timeoutId, intervalId, messageId }
+    },
+    [runStream],
+  )
 
-  const handleSend = (text: string) => {
-    const snapshot = useChatStore.getState().messages
-    const history = snapshot
-      .filter((m) => m.status === 'done')
-      .map((m) => ({ role: m.role, content: m.content }))
-      .slice(-20)
-    const store = useChatStore.getState()
-    store.addUserMessage(text)
-    const assistantId = store.addAssistantMessage()
-    runStream(assistantId, { message: text, history })
-  }
+  const handleSend = useCallback(
+    (text: string) => {
+      const snapshot = useChatStore.getState().messages
+      const history = snapshot
+        .filter((m) => m.status === 'done')
+        .map((m) => ({ role: m.role, content: m.content }))
+        .slice(-20)
+      const store = useChatStore.getState()
+      store.addUserMessage(text)
+      const assistantId = store.addAssistantMessage()
+      runStream(assistantId, { message: text, history })
+    },
+    [runStream],
+  )
 
-  const handleRetry = (messageId: string) => {
-    cancelInFlight()
-    const messages = useChatStore.getState().messages
-    const idx = messages.findIndex((m) => m.id === messageId)
-    if (idx <= 0) return
-    const userMessage = messages[idx - 1]
-    if (userMessage.role !== 'user') return
-    const text = userMessage.content
-    const precedingUserId = userMessage.id
-    useChatStore.getState().resetAssistantMessage(messageId)
-    const after = useChatStore.getState().messages
-    const history = after
-      .filter((m) => m.status === 'done' && m.id !== precedingUserId)
-      .map((m) => ({ role: m.role, content: m.content }))
-      .slice(-20)
-    runStream(messageId, { message: text, history })
-  }
+  const handleRetry = useCallback(
+    (messageId: string) => {
+      cancelInFlight()
+      const messages = useChatStore.getState().messages
+      const idx = messages.findIndex((m) => m.id === messageId)
+      if (idx <= 0) return
+      const userMessage = messages[idx - 1]
+      if (userMessage.role !== 'user') return
+      const text = userMessage.content
+      const precedingUserId = userMessage.id
+      useChatStore.getState().resetAssistantMessage(messageId)
+      const after = useChatStore.getState().messages
+      const history = after
+        .filter((m) => m.status === 'done' && m.id !== precedingUserId)
+        .map((m) => ({ role: m.role, content: m.content }))
+        .slice(-20)
+      runStream(messageId, { message: text, history })
+    },
+    [cancelInFlight, runStream],
+  )
 
   return (
     <div className="h-screen flex">

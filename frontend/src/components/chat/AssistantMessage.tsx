@@ -49,9 +49,11 @@ function AssistantBody({
   }
 
   if (message.status === 'error') {
-    const text = message.uxError
-      ? formatChatUxError(message.uxError)
-      : 'An error occurred.'
+    const renderable =
+      message.uxError && message.uxError.kind !== 'backfill_running'
+        ? message.uxError
+        : null
+    const text = renderable ? formatChatUxError(renderable) : 'An error occurred.'
     return (
       <div className="space-y-2">
         <div className="border border-destructive bg-destructive/10 rounded p-3 text-sm">

@@ -371,20 +371,22 @@ aos-chatbot/
 │       │
 │       ├── components/
 │       │   ├── chat/
-│       │   │   ├── ChatContainer.tsx
+│       │   │   ├── ChatPage.tsx
+│       │   │   ├── ChatSidebar.tsx
 │       │   │   ├── MessageList.tsx
-│       │   │   ├── MessageBubble.tsx
+│       │   │   ├── UserMessage.tsx
+│       │   │   ├── AssistantMessage.tsx
+│       │   │   ├── SourceCard.tsx
 │       │   │   ├── ChatInput.tsx
-│       │   │   ├── SourceBadge.tsx
-│       │   │   └── QueueStatus.tsx
+│       │   │   ├── EmptyState.tsx
+│       │   │   ├── BackfillBanner.tsx
+│       │   │   └── RunwayBackground.tsx
 │       │   │
 │       │   ├── admin/
 │       │   │   ├── AdminLayout.tsx
 │       │   │   ├── DocumentList.tsx
 │       │   │   ├── DocumentUpload.tsx
-│       │   │   ├── SystemPromptEditor.tsx
-│       │   │   ├── ExportImport.tsx
-│       │   │   └── SystemStatus.tsx
+│       │   │   └── SystemPromptEditor.tsx
 │       │   │
 │       │   ├── auth/
 │       │   │   ├── LoginForm.tsx
@@ -397,20 +399,24 @@ aos-chatbot/
 │       │       └── ...
 │       │
 │       ├── hooks/
-│       │   ├── useChat.ts               # SSE streaming
-│       │   ├── useDocuments.ts
-│       │   ├── useAuth.ts
-│       │   └── useQueueStatus.ts
+│       │   └── useReadyStatus.ts        # /api/health/ready poller
 │       │
 │       ├── api/
-│       │   ├── client.ts                # Axios/fetch setup
-│       │   └── endpoints.ts
+│       │   ├── client.ts                # Shared fetch wrapper / auth headers
+│       │   ├── chat.ts                  # SSE streaming client (hand-rolled fetch + ReadableStream)
+│       │   └── admin.ts                 # Admin REST endpoints
 │       │
 │       ├── stores/
-│       │   └── authStore.ts             # Zustand for auth state
+│       │   ├── authStore.ts             # Zustand (manual hydrate, localStorage)
+│       │   └── chatStore.ts             # Zustand persist middleware (sessionStorage)
 │       │
-│       └── lib/
-│           └── utils.ts
+│       ├── lib/
+│       │   ├── utils.ts
+│       │   ├── errors.ts
+│       │   └── chatErrors.ts            # Maps HTTP / mid-stream errors to ChatUxError
+│       │
+│       └── test-utils/
+│           └── sseMocks.ts
 │
 └── data/                                 # Mounted volume
     ├── aos.db                            # SQLite database (including `config` table — see §4.3)
@@ -1458,7 +1464,7 @@ WARN and are swallowed. See `services/ModelWarmup.kt`.
 - [x] System prompt editor
 - [x] Reindex UI
 
-> Export/Import deferred to Phase 6.
+> Export/Import deferred to Phase 7.
 
 ### Phase 6: Chat UI (Week 8-9)
 
