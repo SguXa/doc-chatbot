@@ -466,12 +466,12 @@ Replaces placeholder `HomePage` with `ChatPage`. The page renders a 2-column ske
 
 The orchestration capstone. Wire `onSend`, abort lifecycle, retry, auto-retry with countdown.
 
-- [ ] Refs in `ChatPage`:
+- [x] Refs in `ChatPage`:
   - `controllerRef = useRef<AbortController | null>(null)` — at most one in-flight controller
   - `retryRef = useRef<{ timeoutId: number; intervalId: number; messageId: string } | null>(null)` — at most one pending auto-retry
-- [ ] Subscribe to `messages.length` transitions via `useChatStore.subscribe` set up in a `useEffect(..., [])` (mount-once). Use a closure-tracked previous-length variable: act ONLY when length transitions from `> 0` to `0` (the `clearAll` flow). Ignore the initial `0` (mount before rehydrate) and ignore the post-rehydrate `[] → [N]` transition. On the actual `> 0 → 0` transition: abort `controllerRef.current`, `clearTimeout`/`clearInterval` on `retryRef.current`, null both refs.
-- [ ] `useEffect` cleanup on unmount: abort `controllerRef.current` if non-null; clear both timers in `retryRef.current` if non-null; null both refs.
-- [ ] Define `runStream(messageId: string, body: ChatRequestBody)`:
+- [x] Subscribe to `messages.length` transitions via `useChatStore.subscribe` set up in a `useEffect(..., [])` (mount-once). Use a closure-tracked previous-length variable: act ONLY when length transitions from `> 0` to `0` (the `clearAll` flow). Ignore the initial `0` (mount before rehydrate) and ignore the post-rehydrate `[] → [N]` transition. On the actual `> 0 → 0` transition: abort `controllerRef.current`, `clearTimeout`/`clearInterval` on `retryRef.current`, null both refs.
+- [x] `useEffect` cleanup on unmount: abort `controllerRef.current` if non-null; clear both timers in `retryRef.current` if non-null; null both refs.
+- [x] Define `runStream(messageId: string, body: ChatRequestBody)`:
   1. Clear prior state (paranoid; also handles the Retry-during-countdown click): if `retryRef.current` is non-null → `clearTimeout(retryRef.current.timeoutId)`, `clearInterval(retryRef.current.intervalId)`, `retryRef.current = null`. If `controllerRef.current` is non-null → `controllerRef.current.abort()`, `controllerRef.current = null`.
   2. Create new `AbortController`; assign to `controllerRef`
   3. `setIsStreaming(true)`
@@ -483,33 +483,33 @@ The orchestration capstone. Wire `onSend`, abort lifecycle, retry, auto-retry wi
      - `sources` → `setSources(id, event.sources)`
      - `done` → `setStatus(id, 'done')`
      - `error` (mid-stream) → `setError(id, mapMidStreamError(event.message))`
-- [ ] Define `scheduleAutoRetry(messageId, body, seconds)`:
+- [x] Define `scheduleAutoRetry(messageId, body, seconds)`:
   - Set status to `queued` with `statusText = \`Retrying in ${seconds}s…\``
   - Use a local `let remaining = seconds`. Start a `setInterval(1000)` whose callback decrements `remaining` and calls `setStatus(messageId, 'queued', \`Retrying in ${remaining}s…\`)`
   - Set a `setTimeout(seconds * 1000)` whose callback **MUST execute in this exact order**: (1) `clearInterval(intervalId)`, (2) `retryRef.current = null` (BEFORE the next step — the next `runStream`'s `finally` evaluates `!retryRef.current` and would misbehave if we don't null first), (3) `runStream(messageId, body)`
   - Store `{ timeoutId, intervalId, messageId }` in `retryRef.current`
-- [ ] Define `handleSend(text: string)`:
+- [x] Define `handleSend(text: string)`:
   1. Snapshot `messages` from `useChatStore.getState()` BEFORE adding the new message
   2. Build `history`: filter snapshot to `status === 'done'`, map `{role, content}`, `slice(-20)`
   3. `addUserMessage(text)` and `addAssistantMessage()` — capture assistant id
   4. Build `body = { message: text, history }`
   5. Call `runStream(assistantId, body)`
-- [ ] Define `handleRetry(messageId: string)`:
+- [x] Define `handleRetry(messageId: string)`:
   1. Cancel any pending auto-retry / in-flight stream (abort controller, clear timers)
   2. Find the user message immediately preceding `messageId`; capture its `id` as `precedingUserId` and its `content` as `text`
   3. `resetAssistantMessage(messageId)`
   4. Build `history`: snapshot `messages` (taken AFTER `resetAssistantMessage` from step 3 ran — so the assistant is back to `queued` and naturally drops via the `done` filter), filter to `status === 'done'` AND `id !== precedingUserId`, map `{role, content}`, `slice(-20)`. The `id !== precedingUserId` exclusion is required because the user message is the question we're re-asking — putting it in `history` would duplicate it alongside `body.message`. (The `id !== messageId` clause from earlier drafts is redundant after `resetAssistantMessage` — the status filter already drops it.)
   5. Build `body = { message: text, history }`
   6. Call `runStream(messageId, body)`
-- [ ] Pass `handleSend` to `<ChatInput onSend={handleSend} disabled={isStreaming} />`. The `readyStatus === 'failed'` branch swaps the entire input area for the blocker card (Task 15), so passing `readyStatus` here would be dead-code defensive — skip it.
-- [ ] Pass `handleRetry` to `<MessageList onRetry={handleRetry} />`
-- [ ] `ChatPage.test.tsx` — using `mockSseStream` from `frontend/src/test-utils/sseMocks.ts`. **Test setup (top of file, in `beforeEach`):**
+- [x] Pass `handleSend` to `<ChatInput onSend={handleSend} disabled={isStreaming} />`. The `readyStatus === 'failed'` branch swaps the entire input area for the blocker card (Task 15), so passing `readyStatus` here would be dead-code defensive — skip it.
+- [x] Pass `handleRetry` to `<MessageList onRetry={handleRetry} />`
+- [x] `ChatPage.test.tsx` — using `mockSseStream` from `frontend/src/test-utils/sseMocks.ts`. **Test setup (top of file, in `beforeEach`):**
   - reset the chat store: `useChatStore.setState({ messages: [], isStreaming: false }, true)`
   - mock `useReadyStatus` to return `{status: 'ready', isRunning: false}` so the chat area renders normally and the real `fetch('/api/health/ready')` doesn't compete with mocked chat fetches
   - render `<ChatPage />` inside a `QueryClientProvider` wrapper (mirror Phase 5's `DocumentsPage.test.tsx` helper) — `useReadyStatus` wraps `useQuery` and the `BackfillBanner` mounts under the same provider context even when the hook itself is mocked
   - tests that need sequential responses use `vi.mocked(fetch).mockImplementationOnce(...)` chained per call (per the convention noted in `sseMocks.ts`)
   - use `vi.useFakeTimers()` for tests involving the auto-retry countdown, then `vi.advanceTimersByTime(...)` to step through; restore real timers in `afterEach`
-- [ ] Test cases:
+- [x] Test cases:
   - happy path: send → fetch called with right body (filtered + sliced history) → events fold into store correctly → final state has done message with sources
   - history filter: build state with 1 done user msg, 1 done assistant msg, 1 error assistant msg → send → request body's `history` length 2 (drops error)
   - history slice: build state with 21 done messages → send → request body's `history` length 20 (drops oldest)
@@ -525,7 +525,7 @@ The orchestration capstone. Wire `onSend`, abort lifecycle, retry, auto-retry wi
   - **retry-during-countdown**: backfill 503 with `Retry-After: 2` → user clicks Retry on the assistant bubble → assert countdown timer is cleared (no further statusText decrement on tick) → new request fires immediately
   - **countdown observable values**: backfill 503 with `Retry-After: 2` → assert initial statusText is "Retrying in 2s…" → `advanceTimersByTime(1000)` → "Retrying in 1s…" → `advanceTimersByTime(1000)` → second `fetch` is called (subsequent stream is mocked to succeed)
   - `disabled` on input is true while streaming; back to false after `done`
-- [ ] Run `cd frontend && npm test` — green before Task 17
+- [x] Run `cd frontend && npm test` — green before Task 17
 
 ### Task 17: Verify acceptance criteria (manual smoke)
 
